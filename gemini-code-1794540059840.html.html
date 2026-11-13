@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adopta un Parque - Plataforma Oficial</title>
+    
+    <!-- Configuración PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#15803d">
+    
+    <!-- Librería para Generar QR -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
+    <style>
+        :root {
+            --primary: #15803d;
+            --primary-hover: #166534;
+            --primary-light: #dcfce7;
+            --accent: #059669;
+            --bg: #f0fdf4;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --card: #ffffff;
+            --border: #e5e7eb;
+            --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; }
+        body { background-color: var(--bg); color: var(--text); padding: 20px 10px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 850px; }
+
+        /* PANTALLA DE CARGA (SPLASH SCREEN) */
+        #splashScreen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(145deg, #14532d 0%, var(--primary) 50%, var(--accent) 100%);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            transition: opacity 0.6s ease-out, visibility 0.6s ease-out;
+        }
+
+        #splashScreen.oculto {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .splash-logo-circle {
+            width: 115px;
+            height: 115px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 3px solid rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+            animation: latidoLogo 2s infinite ease-in-out;
+        }
+
+        @keyframes latidoLogo {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.07); }
+        }
+
+        .splash-title { font-size: 26px; font-weight: bold; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .splash-subtitle { font-size: 13px; opacity: 0.9; margin-bottom: 28px; }
+
+        .splash-loader-box {
+            width: 220px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.25);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+
+        .splash-loader-bar {
+            width: 45%;
+            height: 100%;
+            background: #ffffff;
+            border-radius: 10px;
+            animation: cargaInfinita 1.3s infinite ease-in-out;
+        }
+
+        @keyframes cargaInfinita {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(250%); }
+        }
+
+        .splash-status { font-size: 12px; opacity: 0.85; font-weight: 500; }
+
+        /* ESTILOS GENERALES DE LA PLATAFORMA */
+        .header { background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%); color: white; padding: 30px 20px; border-radius: 20px; text-align: center; box-shadow: var(--shadow); margin-bottom: 20px; }
+        .header h1 { font-size: 28px; margin-bottom: 6px; }
+        .header p { font-size: 14px; opacity: 0.95; }
+
+        .ticker-wrap { width: 100%; background: rgba(21, 128, 61, 0.15); border: 1px solid var(--primary-light); border-radius: 12px; overflow: hidden; margin-bottom: 20px; padding: 10px 0; }
+        .ticker { display: flex; width: max-content; animation: tickerAnim 25s linear infinite; }
+        .ticker:hover { animation-play-state: paused; }
+        .ticker-item { white-space: nowrap; padding: 0 20px; font-size: 13px; font-weight: 500; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+        
+        @keyframes tickerAnim { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+        .tree-hero { background: var(--card); border-radius: 20px; padding: 25px; text-align: center; box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 25px; }
+        .tree-icon-large { font-size: 80px; display: inline-block; animation: pulseTree 3s infinite ease-in-out; }
+        @keyframes pulseTree { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        .tree-title { font-size: 18px; font-weight: bold; color: var(--primary); margin-top: 10px; }
+        .tree-progress-bar { background: #e5e7eb; border-radius: 10px; height: 14px; overflow: hidden; margin: 15px auto 8px auto; max-width: 400px; }
+        .tree-progress-fill { background: linear-gradient(90deg, #10b981, var(--primary)); height: 100%; width: 5%; transition: width 0.8s ease-in-out; }
+
+        .main-menu { display: grid; grid-template-columns: 1fr; gap: 15px; margin-bottom: 25px; }
+        @media(min-width: 600px) { .main-menu { grid-template-columns: repeat(2, 1fr); } }
+
+        .btn-menu { background: var(--card); border: 2px solid var(--primary-light); border-radius: 16px; padding: 20px 15px; text-align: center; cursor: pointer; transition: all 0.25s ease; box-shadow: var(--shadow); }
+        .btn-menu:hover { transform: translateY(-3px); border-color: var(--primary); background: var(--primary-light); }
+        .btn-menu-icon { font-size: 34px; display: block; margin-bottom: 6px; }
+        .btn-menu-title { font-weight: bold; font-size: 14px; color: var(--primary); }
+
+        .card { background: var(--card); border-radius: 18px; padding: 25px; box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 20px; }
+        .card-title { font-size: 20px; font-weight: bold; color: var(--primary); margin-bottom: 18px; border-bottom: 2px solid var(--primary-light); padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 13px; font-weight: bold; color: var(--text-light); margin-bottom: 6px; }
+        .input-control { width: 100%; padding: 12px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 14px; outline: none; background: #fafafa; }
+        .input-control:focus { border-color: var(--primary); background: #ffffff; }
+
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 15px; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-back { background: #6b7280; color: white; width: auto; padding: 8px 16px; font-size: 13px; margin-bottom: 15px; }
+
+        .tabs { display: flex; gap: 10px; margin-bottom: 15px; }
+        .tab-btn { flex: 1; padding: 10px; background: #f3f4f6; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: var(--text-light); }
+        .tab-btn.active { background: var(--primary); color: white; }
+
+        .table-responsive { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+        th, td { padding: 12px 10px; border-bottom: 1px solid var(--border); }
+        th { background: #f9fafb; color: var(--text-light); font-weight: bold; }
+
+        .report-grid { display: grid; grid-template-columns: 1fr; gap: 15px; margin-top: 15px; }
+        @media(min-width: 600px) { .report-grid { grid-template-columns: repeat(2, 1fr); } }
+        .report-card { background: #fafafa; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
+        .report-card img { width: 100%; height: 180px; object-fit: cover; background: #e5e7eb; }
+        .report-card-body { padding: 15px; }
+        .report-tag { display: inline-block; background: #fee2e2; color: #dc2626; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; margin-bottom: 8px; }
+        .report-park { font-weight: bold; color: var(--primary); font-size: 15px; }
+        .report-desc { font-size: 13px; color: var(--text); margin-top: 6px; line-height: 1.4; }
+
+        .search-results { max-height: 250px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; margin-top: 10px; }
+        .search-item { padding: 12px 14px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.2s; }
+        .search-item:hover { background: var(--primary-light); }
+        .search-item-title { font-weight: bold; color: var(--primary); font-size: 14px; }
+        .search-item-sub { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+
+        .hidden { display: none !important; }
+
+        @media print {
+            body { background: white; padding: 0; }
+            .no-print { display: none !important; }
+            .card { border: none; box-shadow: none; padding: 0; }
+            #constanciaPrint { display: block !important; }
+        }
+
+        #constanciaPrint { text-align: center; padding: 20px; }
+        .qr-big { display: flex; justify-content: center; margin: 30px 0; }
+        .qr-big img, .qr-big canvas { width: 280px !important; height: 280px !important; }
+
+        .admin-footer { margin-top: 30px; text-align: center; border-top: 1px solid var(--border); padding-top: 20px; }
+        .btn-admin { background: transparent; color: var(--text-light); border: 1px solid var(--border); padding: 8px 16px; border-radius: 20px; font-size: 12px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<!-- PANTALLA DE CARGA CON LOGO -->
+<div id="splashScreen" class="no-print">
+    <div class="splash-logo-circle">
+        <!-- Logo SVG Ecológico Integrado (Puedes reemplazar este SVG por <img src="tu-logo.png" width="80"> si tienes imagen propia) -->
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22v-7"/>
+            <path d="M9 19c-4.3 0-7-2.7-7-7 0-4.3 4.3-8 10-10 5.7 2 10 5.7 10 10 0 4.3-2.7 7-7 7h-6z"/>
+            <path d="M12 11l3-3"/>
+            <path d="M12 14l-3-3"/>
+        </svg>
+    </div>
+    <div class="splash-title">Adopta un Parque</div>
+    <div class="splash-subtitle">CUSCO • Sostenibilidad y Participación Ciudadana</div>
+    
+    <div class="splash-loader-box">
+        <div class="splash-loader-bar"></div>
+    </div>
+    <div class="splash-status" id="splashTexto">Sincronizando con el bosque...</div>
+</div>
+
+<div class="container">
+    <div class="header no-print">
+        <h1>🌳 Adopta un Parque</h1>
+        <p>Iniciativa de Sostenibilidad Urbana y Participación Ciudadana</p>
+    </div>
+
+    <!-- CINTA DE MENSAJES -->
+    <div class="ticker-wrap no-print" id="secTicker">
+        <div class="ticker" id="tickerContent">
+            <div class="ticker-item">🌱 Cargando mensajes comunitarios...</div>
+        </div>
+    </div>
+
+    <!-- ÁRBOL DE PROGRESO -->
+    <div class="tree-hero no-print" id="secArbol">
+        <span id="treeIcon" class="tree-icon-large">🌱</span>
+        <div id="treeTitle" class="tree-title">Semilla Ecológica</div>
+        <p style="font-size: 13px; color: var(--text-light); margin-top: 4px;" id="treeDesc">Calculando impacto ambiental...</p>
+        
+        <div class="tree-progress-bar">
+            <div id="treeFill" class="tree-progress-fill"></div>
+        </div>
+    </div>
+
+    <!-- MENÚ PRINCIPAL -->
+    <div class="main-menu no-print" id="menuPrincipal">
+        <div class="btn-menu" onclick="mostrarSeccion('secEmpresa')">
+            <span class="btn-menu-icon">🏢</span>
+            <div class="btn-menu-title">Adopción Empresarial</div>
+        </div>
+
+        <div class="btn-menu" onclick="mostrarSeccion('secBosque')">
+            <span class="btn-menu-icon">🌳</span>
+            <div class="btn-menu-title">Ver Bosque Aliado</div>
+        </div>
+
+        <div class="btn-menu" onclick="mostrarSeccion('secMuroReportes')">
+            <span class="btn-menu-icon">📋</span>
+            <div class="btn-menu-title">Ver Daños Reportados</div>
+        </div>
+
+        <div class="btn-menu" onclick="mostrarSeccion('secReporteDaño')">
+            <span class="btn-menu-icon">⚠️</span>
+            <div class="btn-menu-title">Reportar un Daño</div>
+        </div>
+
+        <div class="btn-menu" onclick="mostrarSeccion('secVoluntario')">
+            <span class="btn-menu-icon">❤️</span>
+            <div class="btn-menu-title">Aporte Voluntario</div>
+        </div>
+
+        <div class="btn-menu" onclick="mostrarSeccion('secVoluntariosLimpieza')">
+            <span class="btn-menu-icon">🧹</span>
+            <div class="btn-menu-title">Unirme como Voluntario</div>
+        </div>
+
+        <div class="btn-menu" onclick="mostrarSeccion('secGenQR')">
+            <span class="btn-menu-icon">📱</span>
+            <div class="btn-menu-title">Consultar / Descargar Mi QR</div>
+        </div>
+    </div>
+
+    <!-- FORMULARIO EMPRESARIAL -->
+    <div id="secEmpresa" class="card hidden no-print">
+        <button class="btn btn-back" onclick="volverInicio()">← Volver al Menú</button>
+        <div class="card-title">🏢 Formulario de Adopción Empresarial</div>
+        <form id="formEmpresa">
+            <div class="form-group">
+                <label for="empRuc">RUC de la Empresa (11 dígitos):</label>
+                <input type="text" id="empRuc" class="input-control" required maxlength="11" pattern="\d{11}" placeholder="Ej. 20123456789">
+            </div>
+            <div class="form-group">
+                <label for="empRazon">Razón Social / Nombre Comercial:</label>
+                <input type="text" id="empRazon" class="input-control" required placeholder="Ej. Corporación Verde S.A.C.">
+            </div>
+            <div class="form-group">
+                <label for="empWeb">Enlace Web / Red Social (Para el QR):</label>
+                <input type="url" id="empWeb" class="input-control" required placeholder="https://www.miempresa.com">
+            </div>
+            <div class="form-group">
+                <label for="empMonto">Monto de Aporte Mensual (S/):</label>
+                <input type="number" id="empMonto" class="input-control" required min="1" placeholder="Ej. 150">
+            </div>
+            <div class="form-group">
+                <label for="empParque">Parque que va a adoptar:</label>
+                <select id="empParque" class="input-control select-parques" required><option value="">Cargando...</option></select>
+            </div>
+            <div class="form-group">
+                <label for="empMensaje">Mensaje de Agradecimiento / Compromiso:</label>
+                <textarea id="empMensaje" class="input-control" rows="2" placeholder="Ej. ¡Apoyando las áreas verdes!"></textarea>
+            </div>
+            <button type="submit" id="btnSubmitEmp" class="btn btn-primary">Completar Adopción</button>
+        </form>
+    </div>
+
+    <!-- DIRECTORIO PÚBLICO -->
+    <div id="secBosque" class="card hidden no-print">
+        <button class="btn btn-back" onclick="volverInicio()">← Volver al Menú</button>
+        <div class="card-title">🌳 Bosque Aliado - Registro Comunitario</div>
+        <div class="tabs">
+            <button class="tab-btn active" id="tabEmpresas" onclick="cambiarTab('Empresa')">Empresas Aliadas</button>
+            <button class="tab-btn" id="tabCiudadanos" onclick="cambiarTab('Ciudadano')">Ciudadanos Solidarios</button>
+        </div>
+        <div class="table-responsive">
+            <table>
+                <thead><tr id="cabeceraTabla"></tr></thead>
+                <tbody id="cuerpoTabla"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- MURO PÚBLICO DE REPORTES DE DAÑOS CON FOTOS -->
+    <div id="secMuroReportes" class="card hidden no-print">
+        <button class="btn btn-back" onclick="volverInicio()">← Volver al Menú</button>
+        <div class="card-title">📋 Muro Ciudadano de Incidencias en Parques</div>
+        <p style="font-size: 13px; color: var(--text-light);">Reportes fotográficos de los problemas registrados por la comunidad para su atención y mantenimiento.</p>
+
+        <div id="contenedorMuroReportes" class="report-grid"></div>
+    </div>
+
+    <!-- APORTE VOLUNTARIO -->
+    <div id="secVoluntario" class="card hidden no-print">
+        <button class="btn btn-back" onclick="volverInicio()">← Volver al Menú</button>
+        <div class="card-title">❤️ Aporte Voluntario Ciudadano</div>
+        <form id="formVoluntario">
+            <div class="form-group">
+                <label for="volNombre">Nombre Completo:</label>
+                <input type="text" id="volNombre" class="input-control" required placeholder="Ej. Juan Pérez">
+            </div>
+            <div class="form-group">
+                <label for="volTelefono">Teléfono / WhatsApp:</label>
+                <input type="tel" id="volTelefono" class="input-control" required placeholder="Ej. 987654321">
+            </div>
+            <div class="form-group">
+                <label for="volParque">Parque que apoya:</label>
+                <select id="volParque" class="input-control select-parques" required><option value="">Cargando...</option></select>
+            </div>
+            <div class="form-group">
+                <label for="volMonto">Monto de Donación (S/):</label>
+                <input type="number" id="volMonto" class="input-control" required min="1" placeholder="Ej. 20">
+            </div>
+            <div class="form-group">
+                <label for="volMensaje">Mensaje para la comunidad:</label>
+                <textarea id="volMensaje" class="input-control" rows="2" placeholder="Ej. ¡Gracias por cuidar el parque!"></textarea>
+            </div>
+            <button type="submit" id="btnSubmitVol" class="btn btn-primary">Registrar Donación</button>
+        </form>
+    </div>
+
+    <!-- UNIRSE COMO VOLUNTARIO DE LIMPIEZA -->
+    <div id="secVoluntariosLimpieza" class="card hidden no-print">
+        <button class="btn btn-back" onclick="volverInicio()">← Volver al Menú</button>
+        <div class="card-title">🧹 Unirme como Voluntario de Limpieza</div>
+        <form id="formInscripcionVoluntario">
+            <div class="form-group">
+                <label for="vlNombre">Nombre Completo:</label>
+                <input type="text" id="vlNombre" class="input-control" required placeholder="Ej. María Gómez">
+            </div>
+            <div class="form-group">
+                <label for="vlTelefono">Teléfono / WhatsApp:</label>
+                <input type="tel" id="vlTelefono" class="input-control" required placeholder="Ej. 987654321">
+            </div>
+            <div class="form-group">
+                <label for="vlParque">Parque en el que deseas apoyar:</label>
+                <select id="vlParque" class="input-control select-parques" required><option value="">Cargando...</option></select>
+            </div>
+            <div class="form-group">
+                <label for="vlDisponibilidad">Disponibilidad de tiempo:</label>
+                <select id="vlDisponibilidad" class="input-control" required>
+                    <option value="Fines de semana">Fines de semana (Sábados o Domingos)</option>
+                    <option value="Entre semana">Entre semana por las tardes</option>
+                    <option value="Tiempo flexible">Tiempo flexible / Cualquier jornada</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="vlMensaje">Comentario o habilidad especial:</label>
+                <textarea id="vlMensaje" class="input-control" rows="2" placeholder="Ej. Me apunto para apoyar en la limpieza general."></textarea>
+            </div>
+            <button type="submit" id="btnSubmitVL" class="btn btn-primary">Inscribirme como Voluntario</button>
+        </form>
+    </div>
+
+    <!-- REPORTAR DAÑO -->
+    <div id="secReporteDaño" class="card hidden no-print">
+        <button class="btn btn-back" onclick="volverInicio()">← Volver al Menú</button>
+        <div class="card-title">⚠️ Reportar Daño o Incidencia en el Parque</div>
+        <form id="formReporteDaño">
+            <div class="form-group">
+                <label for="repParque">Parque afectado:</label>
+                <select id="repParque" class="input-control select-parques" required><option value="">Cargando...</option></select>
+            </div>
+            <div class="form-group">
+                <label for="repTipo">Tipo de Problema:</label>
+                <select id="repTipo" class="input-control" required>
+                    <option value="Juegos infantiles rotos">Juegos infantiles rotos</option>
+                    <option value="Luminaria / Poste dañado">Luminaria / Poste dañado</option>
+                    <option value="Acumulación de basura">Acumulación de basura</option>
+                    <option value="Áreas verdes secas / sin agua">Áreas verdes secas / sin agua</option>
+                    <option value="Otro daño general">Otro daño general</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="repDesc">Descripción detallada del daño:</label>
+                <textarea id="repDesc" class="input-control" rows="3" required placeholder="Ej. El resbalador del parque está flojo..."></textarea>
+            </div>
+            <div class="form-group">
+                <label for="repFoto">Subir foto (puedes elegir una ya tomada de tu celular):</label>
+                <input type="file" id="repFoto" class="input-control" accept="image/*">
+            </div>
+            <div class="form-group">
+                <label for="repContacto">Tu Nombre y Teléfono:</label>
+                <input type="text" id="repContacto" class="input-control" required placeholder="Ej. Carlos Mendoza - 987654321">
+            </div>
+            <button type="submit" id="btnSubmitRep" class="btn btn-primary">Enviar Reporte con Foto</button>
+        </form>
+    </div>
+
+    <!-- CONSULTA DE QR -->
+    <div id="secGenQR" class="card hidden no-print">
+        <button class="btn btn-back" onclick="volverInicio()">← Volver al Menú</button>
+        <div class="card-title">📱 Consultar y Descargar Código QR Oficial</div>
+        <div style="background: var(--primary-light); padding: 18px; border-radius: 12px; border: 1px solid var(--primary);">
+            <label style="font-weight: bold; color: var(--primary); font-size: 14px; display: block; margin-bottom: 6px;">
+                🔍 Escribe tu RUC o Nombre Comercial registrado:
+            </label>
+            <input type="text" id="buscarEmpresaQR" class="input-control" placeholder="Ej. 20123456789 o Mi Empresa S.A.C." oninput="filtrarEmpresasQR()">
+            <div id="listaResultadosQR" class="search-results hidden"></div>
+        </div>
+    </div>
+
+    <!-- PANEL ADMIN -->
+    <div id="secAdmin" class="card hidden no-print" style="border: 2px solid var(--warning);">
+        <div class="card-title" style="color: var(--warning);">
+            <span>🔒 Base de Datos y Gestión del Sistema</span>
+            <button class="btn btn-back" onclick="volverInicio()" style="background: var(--danger); margin: 0;">Cerrar Panel</button>
+        </div>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr><th>ID</th><th>Nombre</th><th>Tipo</th><th>Parque</th><th>Mensaje</th><th>Acciones</th></tr>
+                </thead>
+                <tbody id="cuerpoAdmin"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- CONSTANCIA IMPRESIÓN -->
+    <div id="constanciaPrint" class="card hidden">
+        <h2 style="color: var(--primary); font-size: 24px;">🌳 ADOPTA UN PARQUE</h2>
+        <p style="font-size: 14px; color: var(--text-light); margin-bottom: 10px;">PROYECTO DE SOSTENIBILIDAD Y PUBLICIDAD ECOLÓGICA</p>
+        <h3 id="printEmpresa" style="font-size: 22px; margin-top: 15px;"></h3>
+        <p style="font-size: 14px;" id="printDetalle"></p>
+        <div class="qr-big"><div id="qrcodeBig"></div></div>
+        <p style="font-size: 16px; font-weight: bold; color: var(--primary);">Escanea este código QR para acceder a las ofertas y novedades ecológicas.</p>
+        <div class="no-print" style="margin-top: 25px;">
+            <button class="btn btn-primary" onclick="window.print()">Imprimir / Guardar PDF (Media Hoja)</button>
+            <button class="btn btn-back" onclick="volverInicio()" style="margin-top: 10px;">Volver al Menú Principal</button>
+        </div>
+    </div>
+
+    <div class="admin-footer no-print">
+        <button class="btn-admin" onclick="accederAdmin()">⚙️ Base de Datos / Administración</button>
+    </div>
+</div>
+
+<script>
+    const URL_WEB_APP = "https://script.google.com/macros/s/AKfycbylevZkjR1OvmOr0qI9w6rBxzZG0WMbdyL5vjscvku7VHbursM5hJHF2bF_NOYAXDF9Xg/exec";
+    
+    let claveAdminDinamica = "Control123";
+    let datosGlobales = [];
+    let reportesGlobales = [];
+
+    // Temporizador de seguridad: oculta la pantalla de carga tras máx. 8 segundos aunque falle la red
+    const respaldoSplash = setTimeout(ocultarPantallaCarga, 8000);
+
+    cargarDatosDesdeSheets();
+
+    function ocultarPantallaCarga() {
+        clearTimeout(respaldoSplash);
+        const splash = document.getElementById('splashScreen');
+        if (splash && !splash.classList.contains('oculto')) {
+            splash.classList.add('oculto');
+        }
+    }
+
+    function cargarDatosDesdeSheets() {
+        if(!URL_WEB_APP) {
+            ocultarPantallaCarga();
+            return;
+        }
+        fetch(URL_WEB_APP)
+            .then(res => res.json())
+            .then(res => {
+                datosGlobales = res.registros || [];
+                reportesGlobales = res.reportes || [];
+                claveAdminDinamica = res.claveAdmin || "Control123";
+                actualizarListaParquesSelect(res.parques || []);
+                actualizarInterfaz(datosGlobales);
+                renderizarMuroReportes(reportesGlobales);
+                
+                document.getElementById('splashTexto').textContent = "¡Listo!";
+                setTimeout(ocultarPantallaCarga, 350);
+            })
+            .catch(err => {
+                console.error("Error al cargar:", err);
+                document.getElementById('splashTexto').textContent = "Iniciando modo local...";
+                setTimeout(ocultarPantallaCarga, 500);
+            });
+    }
+
+    function renderizarMuroReportes(lista) {
+        const contenedor = document.getElementById('contenedorMuroReportes');
+        contenedor.innerHTML = '';
+        if(!lista || lista.length === 0) {
+            contenedor.innerHTML = '<p style="font-size:13px; color:var(--text-light);">No hay daños reportados en este momento. ¡Nuestros parques lucen impecables!</p>';
+            return;
+        }
+
+        [...lista].reverse().forEach(rep => {
+            const fotoSrc = (rep.foto && rep.foto.startsWith('data:image')) ? rep.foto : 'https://via.placeholder.com/400x200?text=Sin+Foto+Adjunta';
+            contenedor.innerHTML += `
+                <div class="report-card">
+                    <img src="${fotoSrc}" alt="Foto del daño">
+                    <div class="report-card-body">
+                        <span class="report-tag">${rep.tipoProblema || 'Incidencia'}</span>
+                        <div class="report-park">📍 ${rep.parque}</div>
+                        <div class="report-desc">${rep.descripcion || 'Sin descripción.'}</div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    function actualizarListaParquesSelect(parques) {
+        const selects = document.querySelectorAll('.select-parques');
+        selects.forEach(select => {
+            select.innerHTML = '<option value="">Selecciona un parque</option>';
+            parques.forEach(p => {
+                select.innerHTML += `<option value="${p}">${p}</option>`;
+            });
+        });
+    }
+
+    function actualizarInterfaz(lista) {
+        const total = lista.length;
+        const icon = document.getElementById('treeIcon');
+        const title = document.getElementById('treeTitle');
+        const desc = document.getElementById('treeDesc');
+        const fill = document.getElementById('treeFill');
+
+        if (total === 0) {
+            icon.textContent = "🌱"; title.textContent = "Semilla Ecológica (Nivel 0)"; desc.textContent = "0 registros aún."; fill.style.width = "5%";
+        } else if (total < 3) {
+            icon.textContent = "🌿"; title.textContent = "Brote Verde (Nivel 1)"; desc.textContent = `${total} aportes registrados`; fill.style.width = "30%";
+        } else if (total < 7) {
+            icon.textContent = "🪴"; title.textContent = "Arbusto Fuerte (Nivel 2)"; desc.textContent = `${total} aportes registrados`; fill.style.width = "65%";
+        } else {
+            icon.textContent = "🌲🌳🌴"; title.textContent = "Bosque Floreciente (Nivel Máximo)"; desc.textContent = `¡${total} aportes transformando la ciudad!`; fill.style.width = "100%";
+        }
+
+        const mensajes = [];
+        lista.forEach(item => { if(item.mensaje) mensajes.push(`💚 "<strong>${item.mensaje}</strong>" — <i>${item.nombre}</i>`); });
+        const tickerHtml = (mensajes.length > 0 ? mensajes : ["💬 '¡Gracias por unirse al proyecto Adopta un Parque!'"]).map(m => `<div class="ticker-item">${m}</div>`).join('');
+        document.getElementById('tickerContent').innerHTML = tickerHtml + tickerHtml;
+    }
+
+    // Formularios
+    document.getElementById('formEmpresa').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btnSubmitEmp');
+        btn.disabled = true; btn.textContent = "Guardando...";
+        const payload = {
+            tipoRegistro: 'Empresa',
+            razon: document.getElementById('empRazon').value,
+            ruc: document.getElementById('empRuc').value,
+            web: document.getElementById('empWeb').value,
+            monto: parseFloat(document.getElementById('empMonto').value),
+            parque: document.getElementById('empParque').value,
+            mensaje: document.getElementById('empMensaje').value || '¡Apoyando nuestras áreas verdes!'
+        };
+        enviarAGoogleSheets(payload, () => {
+            btn.disabled = false; btn.textContent = "Completar Adopción";
+            generarQRImpresion(payload.razon, `Aliado Ecológico - Parque: ${payload.parque}`, payload.web);
+            this.reset();
+        });
+    });
+
+    document.getElementById('formVoluntario').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btnSubmitVol');
+        btn.disabled = true; btn.textContent = "Guardando...";
+        const payload = {
+            tipoRegistro: 'Ciudadano',
+            nombre: document.getElementById('volNombre').value,
+            telefono: document.getElementById('volTelefono').value,
+            parque: document.getElementById('volParque').value,
+            monto: parseFloat(document.getElementById('volMonto').value),
+            mensaje: document.getElementById('volMensaje').value || '¡Gracias por cuidar el parque!'
+        };
+        enviarAGoogleSheets(payload, () => {
+            btn.disabled = false; btn.textContent = "Registrar Donación";
+            alert("¡Muchas gracias!"); this.reset(); volverInicio();
+        });
+    });
+
+    document.getElementById('formInscripcionVoluntario').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btnSubmitVL');
+        btn.disabled = true; btn.textContent = "Inscribiendo...";
+        const payload = {
+            tipoAccion: 'Voluntario',
+            nombre: document.getElementById('vlNombre').value,
+            telefono: document.getElementById('vlTelefono').value,
+            parque: document.getElementById('vlParque').value,
+            disponibilidad: document.getElementById('vlDisponibilidad').value,
+            mensaje: document.getElementById('vlMensaje').value || 'Listo para apoyar.'
+        };
+        enviarAGoogleSheets(payload, () => {
+            btn.disabled = false; btn.textContent = "Inscribirme como Voluntario";
+            alert("¡Te has inscrito como voluntario exitosamente!");
+            this.reset(); volverInicio();
+        });
+    });
+
+    document.getElementById('formReporteDaño').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btnSubmitRep');
+        btn.disabled = true; btn.textContent = "Subiendo reporte y foto...";
+
+        const fileInput = document.getElementById('repFoto');
+        const file = fileInput.files[0];
+
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                enviarReporteConFoto(event.target.result, btn);
+            };
+            reader.readAsDataURL(file);
+        } else {
+            enviarReporteConFoto("Sin foto", btn);
+        }
+    });
+
+    function enviarReporteConFoto(fotoData, btn) {
+        const payload = {
+            tipoAccion: 'ReporteDaño',
+            parque: document.getElementById('repParque').value,
+            tipoProblema: document.getElementById('repTipo').value,
+            descripcion: document.getElementById('repDesc').value,
+            foto: fotoData,
+            contacto: document.getElementById('repContacto').value
+        };
+        enviarAGoogleSheets(payload, () => {
+            btn.disabled = false; btn.textContent = "Enviar Reporte con Foto";
+            alert("¡Reporte enviado con éxito!");
+            document.getElementById('formReporteDaño').reset();
+            volverInicio();
+        });
+    }
+
+    function enviarAGoogleSheets(datos, callback) {
+        fetch(URL_WEB_APP, {
+            method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(datos)
+        }).then(() => { if(callback) callback(); }).catch(err => { console.error(err); if(callback) callback(); });
+    }
+
+    function filtrarEmpresasQR() {
+        const query = document.getElementById('buscarEmpresaQR').value.toLowerCase().trim();
+        const contenedor = document.getElementById('listaResultadosQR');
+        if (!query) { contenedor.classList.add('hidden'); return; }
+        const coincidencia = datosGlobales.filter(item => (item.nombre && item.nombre.toLowerCase().includes(query)) || (item.ruc && item.ruc.toString().includes(query)));
+        if (coincidencia.length === 0) {
+            contenedor.innerHTML = '<div class="search-item"><span class="search-item-sub">⚠️ No se encontró ningún aliado registrado.</span></div>';
+        } else {
+            contenedor.innerHTML = '';
+            coincidencia.forEach(emp => {
+                const urlValida = emp.web || `https://google.com/search?q=${encodeURIComponent(emp.nombre)}`;
+                contenedor.innerHTML += `
+                    <div class="search-item" onclick="generarQRImpresion('${emp.nombre}', 'Aliado Ecológico - Parque: ${emp.parque}', '${urlValida}')">
+                        <div class="search-item-title">${emp.nombre} ${emp.ruc ? '(RUC: '+emp.ruc+')' : ''}</div>
+                        <div class="search-item-sub">Parque: ${emp.parque} • Clic para ver y descargar QR</div>
+                    </div>
+                `;
+            });
+        }
+        contenedor.classList.remove('hidden');
+    }
+
+    function cambiarTab(tipo) {
+        const tabEmp = document.getElementById('tabEmpresas');
+        const tabCiu = document.getElementById('tabCiudadanos');
+        const cabecera = document.getElementById('cabeceraTabla');
+        const cuerpo = document.getElementById('cuerpoTabla');
+        cuerpo.innerHTML = '';
+        if(tipo === 'Empresa') {
+            tabEmp.classList.add('active'); tabCiu.classList.remove('active');
+            cabecera.innerHTML = `<th>Empresa</th><th>RUC</th><th>Parque</th><th>Mensaje</th>`;
+            datosGlobales.filter(d => d.tipo === 'Empresa').forEach(e => {
+                cuerpo.innerHTML += `<tr><td><strong>${e.nombre}</strong></td><td>${e.ruc}</td><td>${e.parque}</td><td><i>"${e.mensaje}"</i></td></tr>`;
+            });
+        } else {
+            tabCiu.classList.add('active'); tabEmp.classList.remove('active');
+            cabecera.innerHTML = `<th>Ciudadano Solidario</th><th>Parque</th><th>Mensaje</th>`;
+            datosGlobales.filter(d => d.tipo === 'Ciudadano').forEach(c => {
+                cuerpo.innerHTML += `<tr><td><strong>${c.nombre}</strong></td><td>${c.parque}</td><td><i>"${c.mensaje}"</i></td></tr>`;
+            });
+        }
+    }
+
+    function generarQRImpresion(titulo, detalle, urlQR) {
+        mostrarSeccion('constanciaPrint');
+        document.getElementById('printEmpresa').textContent = titulo;
+        document.getElementById('printDetalle').textContent = detalle;
+        const containerQR = document.getElementById('qrcodeBig');
+        containerQR.innerHTML = '';
+        new QRCode(containerQR, { text: urlQR, width: 260, height: 260 });
+    }
+
+    function mostrarSeccion(id) {
+        ['menuPrincipal', 'secEmpresa', 'secBosque', 'secMuroReportes', 'secVoluntario', 'secVoluntariosLimpieza', 'secReporteDaño', 'secGenQR', 'secAdmin', 'constanciaPrint', 'secArbol', 'secTicker'].forEach(sec => {
+            document.getElementById(sec).classList.add('hidden');
+        });
+        document.getElementById(id).classList.remove('hidden');
+        if(id === 'secBosque') cambiarTab('Empresa');
+    }
+
+    function volverInicio() {
+        ['secEmpresa', 'secBosque', 'secMuroReportes', 'secVoluntario', 'secVoluntariosLimpieza', 'secReporteDaño', 'secGenQR', 'secAdmin', 'constanciaPrint'].forEach(sec => {
+            document.getElementById(sec).classList.add('hidden');
+        });
+        document.getElementById('menuPrincipal').classList.remove('hidden');
+        document.getElementById('secArbol').classList.remove('hidden');
+        document.getElementById('secTicker').classList.remove('hidden');
+        cargarDatosDesdeSheets();
+    }
+
+    function accederAdmin() {
+        const clave = prompt("Ingresa la clave de administración:");
+        if(clave === claveAdminDinamica) {
+            mostrarSeccion('secAdmin');
+            const cuerpo = document.getElementById('cuerpoAdmin');
+            cuerpo.innerHTML = '';
+            datosGlobales.forEach(item => {
+                cuerpo.innerHTML += `
+                    <tr>
+                        <td>${item.id}</td>
+                        <td><strong>${item.nombre}</strong></td>
+                        <td>${item.tipo}</td>
+                        <td>${item.parque}</td>
+                        <td><i>"${item.mensaje || ''}"</i></td>
+                        <td><button class="btn btn-back" style="background:var(--danger); margin:0; padding:4px 8px; font-size:11px;" onclick="eliminarRegistroFila(${item.rowIndex})">Eliminar</button></td>
+                    </tr>
+                `;
+            });
+        } else if(clave !== null) { alert("Clave incorrecta."); }
+    }
+
+    function eliminarRegistroFila(rowIndex) {
+        if(confirm("¿Seguro que deseas eliminar este registro?")) {
+            fetch(URL_WEB_APP, {
+                method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: "delete", rowIndex: rowIndex })
+            }).then(() => { alert("Registro eliminado."); volverInicio(); });
+        }
+    }
+</script>
+
+</body>
+</html>
