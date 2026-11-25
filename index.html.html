@@ -1,0 +1,1836 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adopta el Parque Pampa Camarón</title>
+    
+    <!-- Configuración PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#15803d">
+    
+    <!-- Librería para Generar QR -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
+    <style>
+        :root {
+            --primary: #15803d;
+            --primary-hover: #166534;
+            --primary-light: #dcfce7;
+            --accent: #059669;
+            --bg: #f0fdf4;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --card: #ffffff;
+            --border: #e5e7eb;
+            --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --whatsapp: #25D366;
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; }
+        body { background-color: var(--bg); color: var(--text); padding: 20px 10px 80px 10px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 850px; }
+
+        /* PANTALLA DE CARGA (SPLASH SCREEN) */
+        #splashScreen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(145deg, #14532d 0%, var(--primary) 60%, var(--accent) 100%);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            transition: opacity 0.6s ease-out, visibility 0.6s ease-out;
+        }
+
+        #splashScreen.oculto { opacity: 0; visibility: hidden; pointer-events: none; }
+
+        .splash-logo-circle {
+            width: 115px; height: 115px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 3px solid rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+            animation: latidoLogo 2s infinite ease-in-out;
+        }
+
+        @keyframes latidoLogo { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+        .splash-title { font-size: 24px; font-weight: bold; letter-spacing: 0.4px; margin-bottom: 6px; max-width: 400px; }
+        .splash-subtitle { font-size: 13px; opacity: 0.92; margin-bottom: 28px; }
+        .splash-loader-box { width: 220px; height: 6px; background: rgba(255, 255, 255, 0.25); border-radius: 10px; overflow: hidden; margin-bottom: 12px; }
+        .splash-loader-bar { width: 45%; height: 100%; background: #ffffff; border-radius: 10px; animation: cargaInfinita 1.3s infinite ease-in-out; }
+        @keyframes cargaInfinita { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+        .splash-status { font-size: 12px; opacity: 0.85; font-weight: 500; }
+
+        /* TOAST NOTIFICATIONS */
+        #toastContainer {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 92%;
+            max-width: 420px;
+            pointer-events: none;
+        }
+
+        .toast {
+            background: #1f2937;
+            color: white;
+            padding: 14px 18px;
+            border-radius: 14px;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 12px 28px rgba(0,0,0,0.25);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: toastIn 0.3s ease-out;
+            border-left: 5px solid var(--primary);
+        }
+        .toast.success { background: #14532d; border-left-color: #4ade80; }
+        .toast.error { background: #7f1d1d; border-left-color: #f87171; }
+        .toast.info { background: #1e3a8a; border-left-color: #60a5fa; }
+        @keyframes toastIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* BOTÓN FLOTANTE DE RECARGA RÁPIDA */
+        .fab-refresh {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            box-shadow: 0 6px 18px rgba(21, 128, 61, 0.38);
+            font-size: 22px;
+            cursor: pointer;
+            z-index: 900;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s, background 0.2s;
+        }
+        .fab-refresh:hover { background: var(--primary-hover); transform: scale(1.06); }
+        .fab-refresh.spinning { animation: spin 0.8s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* VISOR DE IMAGEN COMPLETA (LIGHTBOX) */
+        #lightboxModal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 9500;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+        }
+        #lightboxModal img {
+            max-width: 100%;
+            max-height: 80vh;
+            object-fit: contain;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .lightbox-caption {
+            color: #f3f4f6;
+            font-size: 14px;
+            margin-top: 12px;
+            text-align: center;
+            max-width: 600px;
+        }
+        .lightbox-close {
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            background: rgba(255,255,255,0.18);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.35);
+            border-radius: 50%;
+            width: 42px;
+            height: 42px;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* ESTILOS GENERALES DE LA PLATAFORMA */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            color: white;
+            padding: 24px 20px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: var(--shadow);
+            margin-bottom: 14px;
+        }
+        .header h1 { font-size: 23px; margin-bottom: 6px; line-height: 1.25; }
+        .header p { font-size: 13px; opacity: 0.95; }
+
+        /* AVISO DE LIBRE ACCESO Y POLÍTICA DE PRESERVACIÓN */
+        .park-policy-banner {
+            background: #ffffff;
+            border: 1px solid #bbf7d0;
+            border-left: 5px solid var(--primary);
+            border-radius: 14px;
+            padding: 12px 16px;
+            margin-bottom: 14px;
+            font-size: 12.5px;
+            color: var(--text);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+            line-height: 1.5;
+        }
+        .park-policy-banner strong { color: var(--primary); }
+
+        .ticker-wrap { width: 100%; background: rgba(21, 128, 61, 0.12); border: 1px solid var(--primary-light); border-radius: 12px; overflow: hidden; margin-bottom: 16px; padding: 10px 0; }
+        .ticker { display: flex; width: max-content; animation: tickerAnim 25s linear infinite; }
+        .ticker:hover { animation-play-state: paused; }
+        .ticker-item { white-space: nowrap; padding: 0 20px; font-size: 13px; font-weight: 500; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+        @keyframes tickerAnim { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+        /* PANEL DE NIVELES + ÁRBOL DINÁMICO + ANILLO CIRCULAR */
+        .impact-card {
+            background: var(--card);
+            border-radius: 20px;
+            padding: 20px 22px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+        .impact-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+        .impact-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex: 1;
+            min-width: 240px;
+        }
+        .ring-wrap {
+            position: relative;
+            width: 84px;
+            height: 84px;
+            flex-shrink: 0;
+        }
+        .ring-wrap svg {
+            width: 84px;
+            height: 84px;
+            transform: rotate(-90deg);
+        }
+        .ring-bg { fill: none; stroke: #e5e7eb; stroke-width: 8; }
+        .ring-progress {
+            fill: none;
+            stroke: var(--primary);
+            stroke-width: 8;
+            stroke-linecap: round;
+            stroke-dasharray: 226.2;
+            stroke-dashoffset: 215;
+            transition: stroke-dashoffset 0.8s ease-out, stroke 0.4s ease;
+        }
+        .ring-center {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .ring-pct { font-size: 16px; font-weight: 800; color: var(--primary); line-height: 1.1; }
+        .ring-lvl { font-size: 10px; font-weight: 700; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.4px; }
+
+        .impact-info { flex: 1; min-width: 0; }
+        .impact-badge {
+            display: inline-block;
+            background: var(--primary-light);
+            color: var(--primary);
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 20px;
+            margin-bottom: 5px;
+        }
+        .impact-title { font-size: 17px; font-weight: 800; color: var(--text); margin-bottom: 3px; }
+        .impact-desc { font-size: 12.5px; color: var(--text-light); line-height: 1.35; }
+
+        /* ÁRBOL VECTORIAL QUE CRECE POR NIVEL */
+        .tree-stage-box {
+            width: 104px;
+            height: 108px;
+            background: linear-gradient(180deg, #f0fdf4 0%, #dcfce7 100%);
+            border: 1px solid #bbf7d0;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            padding-bottom: 6px;
+            flex-shrink: 0;
+        }
+        #growingTreeSvg {
+            width: 92px;
+            height: 92px;
+            overflow: visible;
+        }
+        .tree-part {
+            opacity: 0;
+            transform-origin: center bottom;
+            transform: scale(0.3);
+            transition: opacity 0.45s ease, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .tree-part.visible {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .level-steps {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+            margin-top: 15px;
+            padding-top: 12px;
+            border-top: 1px solid #f3f4f6;
+        }
+        .step-pill { height: 7px; border-radius: 6px; background: #e5e7eb; transition: background 0.4s ease; }
+        .step-pill.done { background: var(--primary); }
+        .step-pill.current { background: linear-gradient(90deg, var(--primary), #34d399); }
+        .level-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-light);
+            margin-top: 6px;
+            font-weight: 600;
+        }
+
+        .main-menu { display: grid; grid-template-columns: 1fr; gap: 14px; margin-bottom: 20px; }
+        @media(min-width: 600px) { .main-menu { grid-template-columns: repeat(2, 1fr); } }
+
+        .btn-menu { background: var(--card); border: 2px solid var(--primary-light); border-radius: 16px; padding: 18px 15px; text-align: center; cursor: pointer; transition: all 0.25s ease; box-shadow: var(--shadow); }
+        .btn-menu:hover { transform: translateY(-3px); border-color: var(--primary); background: var(--primary-light); }
+        .btn-menu-icon { font-size: 32px; display: block; margin-bottom: 6px; }
+        .btn-menu-title { font-weight: bold; font-size: 14px; color: var(--primary); }
+
+        .btn-share-app {
+            width: 100%;
+            background: #ecfdf5;
+            color: #065f46;
+            border: 1.5px dashed #10b981;
+            border-radius: 14px;
+            padding: 12px;
+            font-weight: bold;
+            font-size: 13.5px;
+            cursor: pointer;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .btn-share-app:hover { background: #d1fae5; }
+
+        .card { background: var(--card); border-radius: 18px; padding: 22px; box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 20px; }
+        .card-title { font-size: 19px; font-weight: bold; color: var(--primary); margin-bottom: 16px; border-bottom: 2px solid var(--primary-light); padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 13px; font-weight: bold; color: var(--text-light); margin-bottom: 6px; }
+        .input-control { width: 100%; padding: 12px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 14px; outline: none; background: #fafafa; }
+        .input-control:focus { border-color: var(--primary); background: #ffffff; }
+        .input-control[readonly] { background: #f3f4f6; color: #14532d; font-weight: 600; }
+
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 15px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-whatsapp { background: var(--whatsapp); color: #064e3b; }
+        .btn-whatsapp:hover { filter: brightness(0.95); }
+        .btn-secondary { background: #0284c7; color: white; }
+        .btn-back { background: #6b7280; color: white; width: auto; padding: 8px 16px; font-size: 13px; margin-bottom: 15px; }
+
+        /* BOTONES CÁMARA Y GALERÍA */
+        .photo-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
+        .btn-photo-opt {
+            padding: 12px 10px;
+            border: 1.5px solid var(--primary);
+            background: var(--primary-light);
+            color: var(--primary);
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .btn-photo-opt:hover { background: #bbf7d0; }
+        .preview-box {
+            margin-top: 12px;
+            background: #f3f4f6;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px;
+            text-align: center;
+        }
+        .preview-box img {
+            max-width: 100%;
+            max-height: 220px;
+            object-fit: contain;
+            border-radius: 8px;
+            cursor: zoom-in;
+        }
+
+        .tabs { display: flex; gap: 10px; margin-bottom: 15px; }
+        .tab-btn { flex: 1; padding: 10px; background: #f3f4f6; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: var(--text-light); font-size: 13px; }
+        .tab-btn.active { background: var(--primary); color: white; }
+
+        .table-responsive { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+        th, td { padding: 12px 10px; border-bottom: 1px solid var(--border); }
+        th { background: #f9fafb; color: var(--text-light); font-weight: bold; }
+
+        /* FILTROS Y TARJETAS DEL MURO DE REPORTES */
+        .filters-bar {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin: 14px 0;
+            background: #f9fafb;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+        @media(min-width: 600px) { .filters-bar { grid-template-columns: 1fr 1fr; } }
+
+        .report-grid { display: grid; grid-template-columns: 1fr; gap: 15px; margin-top: 15px; }
+        @media(min-width: 600px) { .report-grid { grid-template-columns: repeat(2, 1fr); } }
+        .report-card { position: relative; background: #fafafa; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.04); transition: transform 0.2s; }
+        .report-card.is-new { border: 2px solid #10b981; box-shadow: 0 6px 16px rgba(16, 185, 129, 0.18); }
+        .report-img-wrap { position: relative; width: 100%; height: 190px; background: #e5e7eb; cursor: zoom-in; overflow: hidden; }
+        .report-img-wrap img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.25s; }
+        .report-img-wrap:hover img { transform: scale(1.03); }
+        .zoom-hint {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            background: rgba(0,0,0,0.65);
+            color: white;
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+        .badge-new-photo {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: linear-gradient(135deg, #059669, #10b981);
+            color: white;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 4px 10px;
+            border-radius: 20px;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.25);
+            z-index: 2;
+        }
+        .report-card-body { padding: 14px; }
+        .report-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+        .report-tag { display: inline-block; background: #fee2e2; color: #dc2626; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; }
+        .status-badge { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; }
+        .status-pendiente { background: #fef3c7; color: #b45309; }
+        .status-solucionado { background: #dcfce7; color: #15803d; }
+        .report-park { font-weight: bold; color: var(--primary); font-size: 15px; }
+        .report-desc { font-size: 13px; color: var(--text); margin-top: 6px; line-height: 1.4; }
+
+        .search-results { max-height: 250px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; margin-top: 10px; }
+        .search-item { padding: 12px 14px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.2s; }
+        .search-item:hover { background: var(--primary-light); }
+        .search-item-title { font-weight: bold; color: var(--primary); font-size: 14px; }
+        .search-item-sub { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+
+        .hidden { display: none !important; }
+
+        /* CONFIGURACIÓN DE IMPRESIÓN EN HOJA A4 COMPLETA */
+        @page {
+            size: A4 portrait;
+            margin: 0;
+        }
+
+        @media print {
+            html, body {
+                width: 210mm;
+                height: 297mm;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+                display: block !important;
+            }
+            .container {
+                max-width: 100% !important;
+                width: 210mm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .no-print { display: none !important; }
+            .card { border: none !important; box-shadow: none !important; padding: 0 !important; margin: 0 !important; }
+            #constanciaPrint {
+                display: flex !important;
+                align-items: center;
+                justify-content: center;
+                width: 210mm !important;
+                height: 297mm !important;
+                padding: 6mm !important;
+                page-break-after: avoid;
+            }
+            .poster-preview-wrap {
+                margin: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                display: flex !important;
+                align-items: center;
+                justify-content: center;
+            }
+            #posterCanvas { display: none !important; }
+            #posterPrintImg {
+                display: block !important;
+                max-width: 198mm !important;
+                max-height: 285mm !important;
+                width: auto !important;
+                height: auto !important;
+                object-fit: contain;
+            }
+        }
+
+        #constanciaPrint { text-align: center; padding: 15px; }
+        .poster-preview-wrap {
+            display: flex;
+            justify-content: center;
+            margin: 15px 0;
+        }
+        #posterCanvas {
+            width: 100%;
+            max-width: 420px;
+            height: auto;
+            border-radius: 14px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+            border: 1px solid var(--border);
+        }
+        .qr-actions-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-top: 18px;
+        }
+        @media(min-width: 600px) { .qr-actions-grid { grid-template-columns: 1fr 1fr; } }
+
+        .admin-footer { margin-top: 25px; text-align: center; border-top: 1px solid var(--border); padding-top: 18px; }
+        .btn-admin { background: transparent; color: var(--text-light); border: 1px solid var(--border); padding: 8px 16px; border-radius: 20px; font-size: 12px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<!-- PANTALLA DE CARGA CON LOGO -->
+<div id="splashScreen" class="no-print">
+    <div class="splash-logo-circle">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22v-7"/>
+            <path d="M9 19c-4.3 0-7-2.7-7-7 0-4.3 4.3-8 10-10 5.7 2 10 5.7 10 10 0 4.3-2.7 7-7 7h-6z"/>
+            <path d="M12 11l3-3"/>
+            <path d="M12 14l-3-3"/>
+        </svg>
+    </div>
+    <div class="splash-title">Adopta el Parque Pampa Camarón</div>
+    <div class="splash-subtitle">MARISCAL GAMARRA, CUSCO • Cuidado y Preservación</div>
+    
+    <div class="splash-loader-box">
+        <div class="splash-loader-bar"></div>
+    </div>
+    <div class="splash-status" id="splashTexto">Sincronizando datos del Parque Pampa Camarón...</div>
+</div>
+
+<!-- CONTENEDOR DE NOTIFICACIONES TOAST -->
+<div id="toastContainer" class="no-print"></div>
+
+<!-- BOTÓN FLOTANTE DE RECARGA RÁPIDA -->
+<button id="btnRecargaRapida" class="fab-refresh no-print" onclick="recargarManual()" title="Actualizar datos">🔄</button>
+
+<!-- VISOR DE IMAGEN COMPLETA (LIGHTBOX) -->
+<div id="lightboxModal" class="hidden no-print" onclick="cerrarVisorSiFondo(event)">
+    <button class="lightbox-close" onclick="cerrarVisorFoto()" title="Cerrar">✕</button>
+    <img id="lightboxImg" src="" alt="Vista completa">
+    <div id="lightboxCaption" class="lightbox-caption"></div>
+</div>
+
+<div class="container">
+    <div class="header no-print">
+        <h1>Adopta el Parque Pampa Camarón</h1>
+        <p>Comercios y vecinos unidos por el cuidado y preservación del parque</p>
+    </div>
+
+    <!-- AVISO DE LIBRE ACCESO Y POLÍTICA DE PRESERVACIÓN -->
+    <div class="park-policy-banner no-print" id="secPolitica">
+        <strong>🌿 Libre acceso y política de preservación:</strong> El <strong>Parque Pampa Camarón</strong> es un espacio de libre acceso para la comunidad. Al visitarlo, cuidemos las áreas verdes, bancas, juegos y el entorno vecinal, evitando cualquier maltrato o deterioro del parque.
+    </div>
+
+    <!-- CINTA DE MENSAJES -->
+    <div class="ticker-wrap no-print" id="secTicker">
+        <div class="ticker" id="tickerContent">
+            <div class="ticker-item">Cargando mensajes del Parque Pampa Camarón...</div>
+        </div>
+    </div>
+
+    <!-- PANEL DE IMPACTO, 6 NIVELES Y ÁRBOL QUE CRECE -->
+    <div class="impact-card no-print" id="secImpacto">
+        <div class="impact-top">
+            <div class="impact-left">
+                <div class="ring-wrap">
+                    <svg viewBox="0 0 84 84">
+                        <circle class="ring-bg" cx="42" cy="42" r="36"></circle>
+                        <circle id="ringProgress" class="ring-progress" cx="42" cy="42" r="36"></circle>
+                    </svg>
+                    <div class="ring-center">
+                        <span id="ringPct" class="ring-pct">5%</span>
+                        <span id="ringLvl" class="ring-lvl">Nivel 0</span>
+                    </div>
+                </div>
+                <div class="impact-info">
+                    <span id="impactBadge" class="impact-badge">ETAPA 0 DE 5</span>
+                    <div id="impactTitle" class="impact-title">Punto de Partida</div>
+                    <div id="impactDesc" class="impact-desc">Calculando participación para el Parque Pampa Camarón...</div>
+                </div>
+            </div>
+
+            <!-- Árbol vectorial que crece conforme suben los aportes -->
+            <div class="tree-stage-box" title="Crecimiento del parque según aportes">
+                <svg id="growingTreeSvg" viewBox="0 0 100 100">
+                    <!-- Tierra base -->
+                    <ellipse cx="50" cy="91" rx="34" ry="6" fill="#86efac"/>
+                    <ellipse cx="50" cy="91" rx="22" ry="4" fill="#a16207" opacity="0.45"/>
+
+                    <!-- Nivel 1: Brote inicial -->
+                    <g id="treeLvl1" class="tree-part">
+                        <path d="M50 90 Q49 76 50 67" stroke="#65a30d" stroke-width="4" stroke-linecap="round" fill="none"/>
+                        <ellipse cx="43" cy="66" rx="8" ry="4.5" transform="rotate(-22 43 66)" fill="#4ade80"/>
+                        <ellipse cx="57" cy="66" rx="8" ry="4.5" transform="rotate(22 57 66)" fill="#22c55e"/>
+                    </g>
+
+                    <!-- Nivel 2: Tallo firme y primeras ramas -->
+                    <g id="treeLvl2" class="tree-part">
+                        <path d="M50 90 L50 52" stroke="#78350f" stroke-width="5.5" stroke-linecap="round"/>
+                        <path d="M50 66 L36 55" stroke="#78350f" stroke-width="3.5" stroke-linecap="round"/>
+                        <path d="M50 62 L64 52" stroke="#78350f" stroke-width="3.5" stroke-linecap="round"/>
+                        <circle cx="35" cy="53" r="9" fill="#4ade80"/>
+                        <circle cx="65" cy="50" r="9" fill="#22c55e"/>
+                    </g>
+
+                    <!-- Nivel 3: Copa media en formación -->
+                    <g id="treeLvl3" class="tree-part">
+                        <path d="M50 90 L50 42" stroke="#78350f" stroke-width="7" stroke-linecap="round"/>
+                        <circle cx="34" cy="48" r="14" fill="#22c55e"/>
+                        <circle cx="66" cy="48" r="14" fill="#16a34a"/>
+                        <circle cx="50" cy="36" r="17" fill="#4ade80"/>
+                    </g>
+
+                    <!-- Nivel 4: Copa frondosa -->
+                    <g id="treeLvl4" class="tree-part">
+                        <path d="M50 90 L50 36" stroke="#78350f" stroke-width="8.5" stroke-linecap="round"/>
+                        <circle cx="28" cy="45" r="16" fill="#16a34a"/>
+                        <circle cx="72" cy="45" r="16" fill="#15803d"/>
+                        <circle cx="40" cy="30" r="17" fill="#22c55e"/>
+                        <circle cx="60" cy="30" r="17" fill="#4ade80"/>
+                        <circle cx="50" cy="22" r="16" fill="#16a34a"/>
+                    </g>
+
+                    <!-- Nivel 5: Árbol adulto completo con brotes dorados/verdes -->
+                    <g id="treeLvl5" class="tree-part">
+                        <circle cx="24" cy="36" r="11" fill="#4ade80"/>
+                        <circle cx="76" cy="36" r="11" fill="#22c55e"/>
+                        <circle cx="50" cy="14" r="13" fill="#86efac" opacity="0.55"/>
+                        <circle cx="35" cy="42" r="4" fill="#fde047"/>
+                        <circle cx="63" cy="28" r="4" fill="#fde047"/>
+                        <circle cx="52" cy="44" r="4" fill="#fde047"/>
+                    </g>
+                </svg>
+            </div>
+        </div>
+
+        <div class="level-steps" id="levelSteps">
+            <div class="step-pill" id="step1"></div>
+            <div class="step-pill" id="step2"></div>
+            <div class="step-pill" id="step3"></div>
+            <div class="step-pill" id="step4"></div>
+            <div class="step-pill" id="step5"></div>
+        </div>
+        <div class="level-labels">
+            <span>Niv. 1</span>
+            <span>Niv. 2</span>
+            <span>Niv. 3</span>
+            <span>Niv. 4</span>
+            <span>Niv. 5 Máx</span>
+        </div>
+    </div>
+
+    <!-- BOTÓN COMPARTIR APP POR WHATSAPP -->
+    <button class="btn-share-app no-print" id="btnShareApp" onclick="compartirAppWhatsApp()">
+        📲 Compartir "Adopta el Parque Pampa Camarón" por WhatsApp
+    </button>
+
+    <!-- MENÚ PRINCIPAL -->
+    <div class="main-menu no-print" id="menuPrincipal">
+        <div class="btn-menu" onclick="mostrarSeccion('secEmpresa')">
+            <span class="btn-menu-icon">🏢</span>
+            <div class="btn-menu-title">Adopción Empresarial (Aporte ⇄ QR)</div>
+        </div>
+
+        <div class="btn-menu" onclick="mostrarSeccion('secBosque')">
+            <span class="btn-menu-icon">🤝</span>
+            <div class="btn-menu-title">Ver Aliados y Aportes</div>
+        </div>
+
+        <div class="btn-menu" onclick="mostrarSeccion('secMuroReportes')">
+            <span class="btn-menu-icon">📋</span>
+            <div class="btn-menu-title">Ver Daños Reportados</div>
+        </div>
+
+        <div class="btn-menu" onclick="mostrarSeccion('secReporteDaño')">
+            <span class="btn-menu-icon">⚠️</span>
+            <div class="btn-menu-title">Reportar Daño</div>
+        </div>
+
+        <div class="btn-menu" onclick="mostrarSeccion('secVoluntario')">
+            <span class="btn-menu-icon">❤️</span>
+            <div class="btn-menu-title">Aporte Voluntario</div>
+        </div>
+
+        <div class="btn-menu" onclick="mostrarSeccion('secVoluntariosLimpieza')">
+            <span class="btn-menu-icon">🧹</span>
+            <div class="btn-menu-title">Unirme como Voluntario</div>
+        </div>
+
+        <div class="btn-menu" onclick="mostrarSeccion('secGenQR')">
+            <span class="btn-menu-icon">📱</span>
+            <div class="btn-menu-title">Consultar / Descargar Mi QR</div>
+        </div>
+    </div>
+
+    <!-- FORMULARIO EMPRESARIAL -->
+    <div id="secEmpresa" class="card hidden no-print">
+        <button class="btn btn-back" onclick="volverInicio()">← Volver al Menú</button>
+        <div class="card-title">🏢 Adopción Empresarial — Parque Pampa Camarón</div>
+        <p style="font-size: 12.5px; color: var(--text-light); margin-bottom: 14px;">Tu aporte apoya el mantenimiento del parque y a cambio obtienes tu afiche oficial con QR.</p>
+        <form id="formEmpresa">
+            <div class="form-group">
+                <label for="empRuc">RUC de la Empresa (11 dígitos):</label>
+                <input type="text" id="empRuc" class="input-control" required maxlength="11" pattern="\d{11}" placeholder="Ej. 20123456789">
+            </div>
+            <div class="form-group">
+                <label for="empRazon">Razón Social / Nombre Comercial:</label>
+                <input type="text" id="empRazon" class="input-control" required placeholder="Ej. Eco-Market S.A.C.">
+            </div>
+            <div class="form-group">
+                <label for="empWeb">Enlace Web / Red Social / WhatsApp (Para el QR):</label>
+                <input type="url" id="empWeb" class="input-control" required placeholder="https://www.miempresa.com">
+            </div>
+            <div class="form-group">
+                <label for="empMonto">Monto de Aporte Mensual (S/):</label>
+                <input type="number" id="empMonto" class="input-control" required min="1" placeholder="Ej. 150">
+            </div>
+            <div class="form-group">
+                <label for="empParque">Espacio adoptado:</label>
+                <input type="text" id="empParque" class="input-control" value="Parque Pampa Camarón" readonly>
+            </div>
+            <div class="form-group">
+                <label for="empMensaje">Mensaje de Agradecimiento / Compromiso:</label>
+                <textarea id="empMensaje" class="input-control" rows="2" placeholder="Ej. ¡Cuidamos el Parque Pampa Camarón!"></textarea>
+            </div>
+            <button type="submit" id="btnSubmitEmp" class="btn btn-primary">Completar Adopción y Generar Afiche QR</button>
+        </form>
+    </div>
+
+    <!-- DIRECTORIO PÚBLICO -->
+    <div id="secBosque" class="card hidden no-print">
+        <button class="btn btn-back" onclick="volverInicio()">← Volver al Menú</button>
+        <div class="card-title">🤝 Aliados y Aportes — Parque Pampa Camarón</div>
+        <div class="tabs">
+            <button class="tab-btn active" id="tabEmpresas" onclick="cambiarTab('Empresa')">Empresas Aliadas</button>
+            <button class="tab-btn" id="tabCiudadanos" onclick="cambiarTab('Ciudadano')">Ciudadanos Solidarios</button>
+        </div>
+        <div class="table-responsive">
+            <table>
+                <thead><tr id="cabeceraTabla"></tr></thead>
+                <tbody id="cuerpoTabla"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- MURO PÚBLICO DE REPORTES DE DAÑOS CON FOTOS Y FILTROS -->
+    <div id="secMuroReportes" class="card hidden no-print">
+        <button class="btn btn-back" onclick="volverInicio()">← Volver al Menú</button>
+        <div class="card-title">
+            <span>📋 Muro de Incidencias — Parque Pampa Camarón</span>
+            <span id="contadorReportesBadge" style="font-size: 12px; background: var(--primary-light); color: var(--primary); padding: 4px 10px; border-radius: 12px;">0 reportes</span>
+        </div>
+        <p style="font-size: 13px; color: var(--text-light);">Toca cualquier imagen para verla en pantalla completa sin recortes.</p>
+
+        <div class="filters-bar">
+            <div>
+                <label style="font-size: 11px; font-weight: bold; color: var(--text-light); display: block; margin-bottom: 4px;">Espacio:</label>
+                <input type="text" id="filtroParqueMuro" class="input-control" style="padding: 8px 10px; font-size: 13px;" value="Parque Pampa Camarón" readonly>
+            </div>
+            <div>
+                <label style="font-size: 11px; font-weight: bold; color: var(--text-light); display: block; margin-bottom: 4px;">Filtrar por Estado:</label>
+                <select id="filtroEstadoMuro" class="input-control" style="padding: 8px 10px; font-size: 13px;" onchange="aplicarFiltrosMuro()">
+                    <option value="TODOS">Todos los estados</option>
+                    <option value="Pendiente">🟡 Pendientes</option>
+                    <option value="Solucionado">🟢 Solucionados</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="contenedorMuroReportes" class="report-grid"></div>
+    </div>
+
+    <!-- APORTE VOLUNTARIO -->
+    <div id="secVoluntario" class="card hidden no-print">
+        <button class="btn btn-back" onclick="volverInicio()">← Volver al Menú</button>
+        <div class="card-title">❤️ Aporte Voluntario — Parque Pampa Camarón</div>
+        <form id="formVoluntario">
+            <div class="form-group">
+                <label for="volNombre">Nombre Completo:</label>
+                <input type="text" id="volNombre" class="input-control" required placeholder="Ej. Juan Pérez">
+            </div>
+            <div class="form-group">
+                <label for="volTelefono">Teléfono / WhatsApp:</label>
+                <input type="tel" id="volTelefono" class="input-control" required placeholder="Ej. 987654321">
+            </div>
+            <div class="form-group">
+                <label for="volParque">Parque que apoya:</label>
+                <input type="text" id="volParque" class="input-control" value="Parque Pampa Camarón" readonly>
+            </div>
+            <div class="form-group">
+                <label for="volMonto">Monto de Donación (S/):</label>
+                <input type="number" id="volMonto" class="input-control" required min="1" placeholder="Ej. 20">
+            </div>
+            <div class="form-group">
+                <label for="volMensaje">Mensaje para la comunidad:</label>
+                <textarea id="volMensaje" class="input-control" rows="2" placeholder="Ej. ¡Apoyando el Parque Pampa Camarón!"></textarea>
+            </div>
+            <button type="submit" id="btnSubmitVol" class="btn btn-primary">Registrar Donación</button>
+        </form>
+    </div>
+
+    <!-- UNIRSE COMO VOLUNTARIO DE LIMPIEZA -->
+    <div id="secVoluntariosLimpieza" class="card hidden no-print">
+        <button class="btn btn-back" onclick="volverInicio()">← Volver al Menú</button>
+        <div class="card-title">🧹 Voluntariado — Parque Pampa Camarón</div>
+        <form id="formInscripcionVoluntario">
+            <div class="form-group">
+                <label for="vlNombre">Nombre Completo:</label>
+                <input type="text" id="vlNombre" class="input-control" required placeholder="Ej. María Gómez">
+            </div>
+            <div class="form-group">
+                <label for="vlTelefono">Teléfono / WhatsApp:</label>
+                <input type="tel" id="vlTelefono" class="input-control" required placeholder="Ej. 987654321">
+            </div>
+            <div class="form-group">
+                <label for="vlParque">Parque en el que deseas apoyar:</label>
+                <input type="text" id="vlParque" class="input-control" value="Parque Pampa Camarón" readonly>
+            </div>
+            <div class="form-group">
+                <label for="vlDisponibilidad">Disponibilidad de tiempo:</label>
+                <select id="vlDisponibilidad" class="input-control" required>
+                    <option value="Fines de semana">Fines de semana (Sábados o Domingos)</option>
+                    <option value="Entre semana (tarde)">Entre semana por la tarde</option>
+                    <option value="Jornadas de limpieza y áreas verdes">Jornadas de limpieza y áreas verdes</option>
+                    <option value="Tiempo flexible">Tiempo flexible / Cualquier jornada</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="vlMensaje">Comentario o habilidad especial:</label>
+                <textarea id="vlMensaje" class="input-control" rows="2" placeholder="Ej. Me apunto para apoyar en limpieza y cuidado del parque."></textarea>
+            </div>
+            <button type="submit" id="btnSubmitVL" class="btn btn-primary">Inscribirme como Voluntario</button>
+        </form>
+    </div>
+
+    <!-- REPORTAR DAÑO -->
+    <div id="secReporteDaño" class="card hidden no-print">
+        <button class="btn btn-back" onclick="volverInicio()">← Volver al Menú</button>
+        <div class="card-title">⚠️ Reportar Daño — Parque Pampa Camarón</div>
+        <form id="formReporteDaño">
+            <div class="form-group">
+                <label for="repParque">Parque afectado:</label>
+                <input type="text" id="repParque" class="input-control" value="Parque Pampa Camarón" readonly>
+            </div>
+            <div class="form-group">
+                <label for="repTipo">Tipo de Problema:</label>
+                <select id="repTipo" class="input-control" required>
+                    <option value="Juegos infantiles rotos">Juegos infantiles rotos</option>
+                    <option value="Luminaria apagada o dañada">Luminaria apagada o dañada</option>
+                    <option value="Acumulación de basura / residuos">Acumulación de basura / residuos</option>
+                    <option value="Áreas verdes secas / sin agua">Áreas verdes secas / sin agua</option>
+                    <option value="Bancas o mobiliario maltratado">Bancas o mobiliario maltratado</option>
+                    <option value="Otro daño general">Otro daño general</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="repDesc">Descripción detallada del daño:</label>
+                <textarea id="repDesc" class="input-control" rows="3" required placeholder="Ej. Se observa un juego roto o basura acumulada cerca de las bancas..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Evidencia Fotográfica (se optimiza automáticamente):</label>
+                <div class="photo-actions">
+                    <button type="button" class="btn-photo-opt" onclick="document.getElementById('repFotoCamara').click()">
+                        📸 Tomar Foto Ahora
+                    </button>
+                    <button type="button" class="btn-photo-opt" onclick="document.getElementById('repFotoGaleria').click()">
+                        🖼️ Elegir de Galería
+                    </button>
+                </div>
+                <input type="file" id="repFotoCamara" accept="image/*" capture="environment" class="hidden" onchange="procesarFotoSeleccionada(this)">
+                <input type="file" id="repFotoGaleria" accept="image/*" class="hidden" onchange="procesarFotoSeleccionada(this)">
+
+                <div id="previewFotoBox" class="preview-box hidden">
+                    <img id="previewFotoImg" src="" alt="Vista previa" onclick="abrirVisorFoto(this.src, 'Vista previa de la foto a enviar')">
+                    <div style="font-size: 11px; color: var(--text-light); margin-top: 6px;" id="previewFotoInfo">Toca la imagen para verla completa</div>
+                    <button type="button" onclick="limpiarFotoSeleccionada()" style="margin-top: 6px; background: #fee2e2; color: #dc2626; border: none; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer;">✕ Quitar foto</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="repContacto">Tu Nombre y Teléfono:</label>
+                <input type="text" id="repContacto" class="input-control" required placeholder="Ej. Carlos Mendoza - 987654321">
+            </div>
+            <button type="submit" id="btnSubmitRep" class="btn btn-primary">Enviar Reporte con Foto</button>
+        </form>
+    </div>
+
+    <!-- CONSULTA DE QR -->
+    <div id="secGenQR" class="card hidden no-print">
+        <button class="btn btn-back" onclick="volverInicio()">← Volver al Menú</button>
+        <div class="card-title">📱 Consultar y Descargar Afiche QR Oficial</div>
+        <div style="background: var(--primary-light); padding: 18px; border-radius: 12px; border: 1px solid var(--primary);">
+            <label style="font-weight: bold; color: var(--primary); font-size: 14px; display: block; margin-bottom: 6px;">
+                🔍 Escribe tu RUC o Nombre Comercial registrado:
+            </label>
+            <input type="text" id="buscarEmpresaQR" class="input-control" placeholder="Ej. 20123456789 o Eco-Market" oninput="filtrarEmpresasQR()">
+            <div id="listaResultadosQR" class="search-results hidden"></div>
+        </div>
+    </div>
+
+    <!-- PANEL ADMIN MEJORADO -->
+    <div id="secAdmin" class="card hidden no-print" style="border: 2px solid var(--warning);">
+        <div class="card-title" style="color: var(--warning);">
+            <span>🔒 Base de Datos y Gestión — Parque Pampa Camarón</span>
+            <button class="btn btn-back" onclick="volverInicio()" style="background: var(--danger); margin: 0;">Cerrar Panel</button>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" id="tabAdminReg" onclick="cambiarTabAdmin('registros')">🏢 Registros y Aportes</button>
+            <button class="tab-btn" id="tabAdminRep" onclick="cambiarTabAdmin('reportes')">⚠️ Daños Reportados</button>
+        </div>
+
+        <div id="adminVistaRegistros" class="table-responsive">
+            <table>
+                <thead>
+                    <tr><th>ID</th><th>Nombre</th><th>Tipo</th><th>Parque</th><th>Mensaje</th><th>Acciones</th></tr>
+                </thead>
+                <tbody id="cuerpoAdmin"></tbody>
+            </table>
+        </div>
+
+        <div id="adminVistaReportes" class="table-responsive hidden">
+            <table>
+                <thead>
+                    <tr><th>Parque</th><th>Problema</th><th>Descripción</th><th>Estado</th><th>Acciones</th></tr>
+                </thead>
+                <tbody id="cuerpoAdminReportes"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- AFICHE QR EMPRESARIAL DESCARGABLE E IMPRIMIBLE EN HOJA A4 -->
+    <div id="constanciaPrint" class="card hidden">
+        <h2 style="color: var(--primary); font-size: 20px;" class="no-print">Afiche Oficial — Adopta el Parque Pampa Camarón</h2>
+        <p style="font-size: 13px; color: var(--text-light); margin-bottom: 10px;" class="no-print">Descarga este afiche con QR ampliado en PNG o imprímelo directamente en hoja A4.</p>
+
+        <div id="qrcodeHidden" style="position:fixed; left:-9999px; top:0; width:440px; height:440px;"></div>
+
+        <div class="poster-preview-wrap">
+            <canvas id="posterCanvas" width="900" height="1260"></canvas>
+            <img id="posterPrintImg" src="" alt="Afiche A4" style="display:none;">
+        </div>
+
+        <div class="qr-actions-grid no-print">
+            <button class="btn btn-primary" onclick="descargarAfichePNG()">⬇️ Descargar Afiche PNG</button>
+            <button class="btn btn-whatsapp" onclick="compartirAficheWhatsApp()">📲 Compartir por WhatsApp</button>
+            <button class="btn btn-secondary" onclick="imprimirAficheA4()">🖨️ Imprimir en Hoja A4 / PDF</button>
+            <button class="btn" style="background:#6b7280; color:white;" onclick="volverInicio()">← Volver al Menú</button>
+        </div>
+    </div>
+
+    <div class="admin-footer no-print">
+        <button class="btn-admin" onclick="accederAdmin()">⚙️ Base de Datos / Administración</button>
+    </div>
+</div>
+
+<script>
+    const URL_WEB_APP = "https://script.google.com/macros/s/AKfycbylevZkjR1OvmOr0qI9w6rBxzZG0WMbdyL5vjscvku7VHbursM5hJHF2bF_NOYAXDF9Xg/exec";
+    const URL_APP_OFICIAL = "https://bancruzdeluize.github.io/adopta-un-parque-cusco/";
+    const NOMBRE_PARQUE_OFICIAL = "Parque Pampa Camarón";
+    const NOMBRE_PROYECTO_OFICIAL = "Adopta el Parque Pampa Camarón";
+    
+    let claveAdminDinamica = "Control123";
+    let datosGlobales = [];
+    let reportesGlobales = [];
+    let fotoComprimidaActual = "";
+    let empresaAficheActual = { nombre: "", parque: NOMBRE_PARQUE_OFICIAL, url: "", slogan: "" };
+
+    let reportesSolucionadosLocal = JSON.parse(localStorage.getItem('adopta_solucionados') || '[]');
+    let reportesRecientesLocal = JSON.parse(sessionStorage.getItem('adopta_recientes') || '[]');
+
+    const respaldoSplash = setTimeout(ocultarPantallaCarga, 8000);
+
+    window.history.replaceState({ vista: 'inicio' }, '', '');
+
+    window.addEventListener('popstate', function(event) {
+        const lightbox = document.getElementById('lightboxModal');
+        if (!lightbox.classList.contains('hidden')) {
+            lightbox.classList.add('hidden');
+            return;
+        }
+        const state = event.state;
+        if (!state || state.vista === 'inicio') {
+            aplicarVistaInicio(false);
+        } else {
+            aplicarVistaSeccion(state.vista, false);
+        }
+    });
+
+    cargarDatosDesdeSheets();
+
+    /* ==================== NOTIFICACIONES TOAST ==================== */
+    function mostrarToast(mensaje, tipo = 'success') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${tipo}`;
+        const icono = tipo === 'success' ? '✅' : (tipo === 'error' ? '❌' : 'ℹ️');
+        toast.innerHTML = `<span>${icono}</span><span>${mensaje}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(10px)';
+            toast.style.transition = 'all 0.3s ease';
+            setTimeout(() => toast.remove(), 300);
+        }, 3400);
+    }
+
+    /* ==================== PANTALLA DE CARGA Y RECARGA ==================== */
+    function ocultarPantallaCarga() {
+        clearTimeout(respaldoSplash);
+        const splash = document.getElementById('splashScreen');
+        if (splash && !splash.classList.contains('oculto')) {
+            splash.classList.add('oculto');
+        }
+    }
+
+    function recargarManual() {
+        const btn = document.getElementById('btnRecargaRapida');
+        btn.classList.add('spinning');
+        mostrarToast('Actualizando datos del Parque Pampa Camarón...', 'info');
+        cargarDatosDesdeSheets(() => {
+            btn.classList.remove('spinning');
+            mostrarToast('Datos actualizados correctamente', 'success');
+        });
+    }
+
+    function cargarDatosDesdeSheets(onFinish) {
+        if(!URL_WEB_APP) {
+            ocultarPantallaCarga();
+            if(onFinish) onFinish();
+            return;
+        }
+        fetch(URL_WEB_APP)
+            .then(res => res.json())
+            .then(res => {
+                datosGlobales = res.registros || [];
+                reportesGlobales = res.reportes || [];
+                claveAdminDinamica = res.claveAdmin || "Control123";
+                actualizarInterfaz(datosGlobales);
+                aplicarFiltrosMuro();
+                
+                document.getElementById('splashTexto').textContent = "¡Listo!";
+                setTimeout(ocultarPantallaCarga, 350);
+                if(onFinish) onFinish();
+            })
+            .catch(err => {
+                console.error("Error al cargar:", err);
+                document.getElementById('splashTexto').textContent = "Iniciando modo local...";
+                setTimeout(ocultarPantallaCarga, 500);
+                if(onFinish) onFinish();
+            });
+    }
+
+    /* ==================== VISOR DE FOTO COMPLETA (LIGHTBOX) ==================== */
+    function abrirVisorFoto(src, descripcion = '') {
+        if (!src || src.includes('placeholder.com')) return;
+        const modal = document.getElementById('lightboxModal');
+        document.getElementById('lightboxImg').src = src;
+        document.getElementById('lightboxCaption').textContent = descripcion;
+        modal.classList.remove('hidden');
+        window.history.pushState({ vista: 'lightbox' }, '', '');
+    }
+
+    function cerrarVisorFoto() {
+        const modal = document.getElementById('lightboxModal');
+        if (!modal.classList.contains('hidden')) {
+            modal.classList.add('hidden');
+            if (window.history.state && window.history.state.vista === 'lightbox') {
+                window.history.back();
+            }
+        }
+    }
+
+    function cerrarVisorSiFondo(e) {
+        if (e.target.id === 'lightboxModal') {
+            cerrarVisorFoto();
+        }
+    }
+
+    /* ==================== CÁMARA + COMPRESIÓN DE IMAGEN ==================== */
+    function procesarFotoSeleccionada(input) {
+        const file = input.files && input.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const img = new Image();
+            img.onload = function() {
+                const MAX_SIZE = 900;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height && width > MAX_SIZE) {
+                    height = Math.round((height * MAX_SIZE) / width);
+                    width = MAX_SIZE;
+                } else if (height > MAX_SIZE) {
+                    width = Math.round((width * MAX_SIZE) / height);
+                    height = MAX_SIZE;
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                fotoComprimidaActual = canvas.toDataURL('image/jpeg', 0.72);
+                const pesoKB = Math.round((fotoComprimidaActual.length * 3) / 4 / 1024);
+
+                document.getElementById('previewFotoImg').src = fotoComprimidaActual;
+                document.getElementById('previewFotoInfo').textContent = `Foto lista (${pesoKB} KB) • Tócala para verla completa`;
+                document.getElementById('previewFotoBox').classList.remove('hidden');
+                mostrarToast(`Foto optimizada (${pesoKB} KB)`, 'success');
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function limpiarFotoSeleccionada() {
+        fotoComprimidaActual = "";
+        document.getElementById('repFotoCamara').value = "";
+        document.getElementById('repFotoGaleria').value = "";
+        document.getElementById('previewFotoBox').classList.add('hidden');
+    }
+
+    /* ==================== MURO DE REPORTES CON FILTROS Y "FOTO NUEVA" ==================== */
+    function obtenerEstadoReporte(rep, idx) {
+        const key = `${rep.parque || NOMBRE_PARQUE_OFICIAL}_${rep.tipoProblema}_${rep.descripcion}`.substring(0, 60);
+        if (rep.estado && rep.estado.toLowerCase() === 'solucionado') return 'Solucionado';
+        if (reportesSolucionadosLocal.includes(key) || (rep.rowIndex && reportesSolucionadosLocal.includes(rep.rowIndex))) return 'Solucionado';
+        return 'Pendiente';
+    }
+
+    function esFotoNueva(rep, reversedIndex) {
+        const key = `${rep.parque || NOMBRE_PARQUE_OFICIAL}_${rep.tipoProblema}_${rep.descripcion}`.substring(0, 60);
+        if (reportesRecientesLocal.includes(key)) return true;
+        if (rep.fecha) {
+            const fechaRep = new Date(rep.fecha);
+            if (!isNaN(fechaRep.getTime())) {
+                const diffHoras = (Date.now() - fechaRep.getTime()) / (1000 * 60 * 60);
+                if (diffHoras <= 48) return true;
+            }
+        }
+        return reversedIndex < 2 && rep.foto && rep.foto.startsWith('data:image');
+    }
+
+    function aplicarFiltrosMuro() {
+        const estadoSel = document.getElementById('filtroEstadoMuro').value;
+
+        const invertida = [...reportesGlobales].reverse();
+        const filtrados = invertida.filter((rep, idx) => {
+            const estado = obtenerEstadoReporte(rep, idx);
+            return (estadoSel === 'TODOS') || (estado === estadoSel);
+        });
+
+        renderizarMuroReportes(filtrados);
+    }
+
+    function renderizarMuroReportes(lista) {
+        const contenedor = document.getElementById('contenedorMuroReportes');
+        const badgeCount = document.getElementById('contadorReportesBadge');
+        contenedor.innerHTML = '';
+        badgeCount.textContent = `${lista.length} reporte${lista.length === 1 ? '' : 's'}`;
+
+        if(!lista || lista.length === 0) {
+            contenedor.innerHTML = '<p style="font-size:13px; color:var(--text-light);">No hay reportes en este estado para el Parque Pampa Camarón.</p>';
+            return;
+        }
+
+        lista.forEach((rep, idx) => {
+            const tieneFoto = rep.foto && rep.foto.startsWith('data:image');
+            const fotoSrc = tieneFoto ? rep.foto : 'https://via.placeholder.com/400x200?text=Sin+Foto+Adjunta';
+            const estado = obtenerEstadoReporte(rep, idx);
+            const nueva = tieneFoto && esFotoNueva(rep, idx);
+            const parqueTexto = rep.parque || NOMBRE_PARQUE_OFICIAL;
+            const descSegura = (rep.descripcion || 'Sin descripción.').replace(/"/g, '&quot;');
+
+            contenedor.innerHTML += `
+                <div class="report-card ${nueva ? 'is-new' : ''}">
+                    ${nueva ? '<div class="badge-new-photo">✨ FOTO NUEVA</div>' : ''}
+                    <div class="report-img-wrap" onclick="abrirVisorFoto('${fotoSrc}', '${parqueTexto} - ${descSegura}')">
+                        <img src="${fotoSrc}" alt="Foto del daño">
+                        ${tieneFoto ? '<span class="zoom-hint">🔍 Ver completa</span>' : ''}
+                    </div>
+                    <div class="report-card-body">
+                        <div class="report-badges">
+                            <span class="report-tag">${rep.tipoProblema || 'Incidencia'}</span>
+                            <span class="status-badge ${estado === 'Solucionado' ? 'status-solucionado' : 'status-pendiente'}">
+                                ${estado === 'Solucionado' ? '✔ Solucionado' : '⏳ Pendiente'}
+                            </span>
+                        </div>
+                        <div class="report-park">📍 ${parqueTexto}</div>
+                        <div class="report-desc">${rep.descripcion || 'Sin descripción.'}</div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    /* ==================== MEDIDOR DE IMPACTO CON 6 NIVELES Y ÁRBOL CRECIENTE ==================== */
+    function actualizarInterfaz(lista) {
+        const total = lista.length;
+        const ring = document.getElementById('ringProgress');
+        const ringPct = document.getElementById('ringPct');
+        const ringLvl = document.getElementById('ringLvl');
+        const badge = document.getElementById('impactBadge');
+        const title = document.getElementById('impactTitle');
+        const desc = document.getElementById('impactDesc');
+
+        const niveles = [
+            { nivel: 0, nombre: "Punto de Partida", min: 0, max: 1, pct: 5, color: "#6b7280", texto: "Aún sin aportes. ¡Sé el primero en sumar en el Parque Pampa Camarón!" },
+            { nivel: 1, nombre: "Primeros Pasos", min: 1, max: 3, pct: 20, color: "#16a34a", texto: `${total} aporte(s) registrado(s). Faltan ${3 - total} para Nivel 2.` },
+            { nivel: 2, nombre: "Comunidad Activa", min: 3, max: 6, pct: 40, color: "#15803d", texto: `${total} aportes activos. Faltan ${6 - total} para Nivel 3.` },
+            { nivel: 3, nombre: "Parque en Transformación", min: 6, max: 10, pct: 60, color: "#059669", texto: `${total} aportes impulsando mejoras. Faltan ${10 - total} para Nivel 4.` },
+            { nivel: 4, nombre: "Espacio Modelo", min: 10, max: 15, pct: 80, color: "#047857", texto: `${total} aportes consolidados. Faltan ${15 - total} para el Nivel Máximo.` },
+            { nivel: 5, nombre: "Parque Sostenible (Nivel Máximo)", min: 15, max: 15, pct: 100, color: "#065f46", texto: `¡${total} aportes cuidando el Parque Pampa Camarón!` }
+        ];
+
+        let actual = niveles[0];
+        for (let i = niveles.length - 1; i >= 0; i--) {
+            if (total >= niveles[i].min) {
+                actual = niveles[i];
+                break;
+            }
+        }
+
+        const circunferencia = 226.2;
+        const offset = circunferencia - (actual.pct / 100) * circunferencia;
+        ring.style.strokeDashoffset = offset;
+        ring.style.stroke = actual.color;
+
+        ringPct.textContent = `${actual.pct}%`;
+        ringPct.style.color = actual.color;
+        ringLvl.textContent = `Nivel ${actual.nivel}`;
+        badge.textContent = `ETAPA ${actual.nivel} DE 5`;
+        title.textContent = actual.nombre;
+        desc.textContent = actual.texto;
+
+        for (let s = 1; s <= 5; s++) {
+            const pill = document.getElementById(`step${s}`);
+            pill.className = 'step-pill';
+            if (s < actual.nivel) {
+                pill.classList.add('done');
+            } else if (s === actual.nivel) {
+                pill.classList.add('current');
+            }
+
+            const treePart = document.getElementById(`treeLvl${s}`);
+            if (treePart) {
+                if (actual.nivel >= s) {
+                    treePart.classList.add('visible');
+                } else {
+                    treePart.classList.remove('visible');
+                }
+            }
+        }
+
+        const mensajes = [];
+        lista.forEach(item => { if(item.mensaje) mensajes.push(`💚 "<strong>${item.mensaje}</strong>" — <i>${item.nombre}</i>`); });
+        const tickerHtml = (mensajes.length > 0 ? mensajes : ["💬 '¡Cuidemos el Parque Pampa Camarón!'"]).map(m => `<div class="ticker-item">${m}</div>`).join('');
+        document.getElementById('tickerContent').innerHTML = tickerHtml + tickerHtml;
+    }
+
+    /* ==================== ENVÍO DE FORMULARIOS ==================== */
+    document.getElementById('formEmpresa').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btnSubmitEmp');
+        btn.disabled = true; btn.textContent = "Guardando...";
+        const payload = {
+            tipoRegistro: 'Empresa',
+            razon: document.getElementById('empRazon').value,
+            ruc: document.getElementById('empRuc').value,
+            web: document.getElementById('empWeb').value,
+            monto: parseFloat(document.getElementById('empMonto').value),
+            parque: NOMBRE_PARQUE_OFICIAL,
+            mensaje: document.getElementById('empMensaje').value || '¡Cuidamos el Parque Pampa Camarón!'
+        };
+        enviarAGoogleSheets(payload, () => {
+            btn.disabled = false; btn.textContent = "Completar Adopción y Generar Afiche QR";
+            mostrarToast("¡Adopción registrada! Generando afiche...", "success");
+            generarQRImpresion(payload.razon, payload.parque, payload.web, payload.mensaje);
+            this.reset();
+            document.getElementById('empParque').value = NOMBRE_PARQUE_OFICIAL;
+        });
+    });
+
+    document.getElementById('formVoluntario').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btnSubmitVol');
+        btn.disabled = true; btn.textContent = "Guardando...";
+        const payload = {
+            tipoRegistro: 'Ciudadano',
+            nombre: document.getElementById('volNombre').value,
+            telefono: document.getElementById('volTelefono').value,
+            parque: NOMBRE_PARQUE_OFICIAL,
+            monto: parseFloat(document.getElementById('volMonto').value),
+            mensaje: document.getElementById('volMensaje').value || '¡Apoyando el Parque Pampa Camarón!'
+        };
+        enviarAGoogleSheets(payload, () => {
+            btn.disabled = false; btn.textContent = "Registrar Donación";
+            mostrarToast("¡Muchas gracias por tu aporte solidario!", "success");
+            this.reset();
+            document.getElementById('volParque').value = NOMBRE_PARQUE_OFICIAL;
+            volverInicio();
+        });
+    });
+
+    document.getElementById('formInscripcionVoluntario').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btnSubmitVL');
+        btn.disabled = true; btn.textContent = "Inscribiendo...";
+        const payload = {
+            tipoAccion: 'Voluntario',
+            nombre: document.getElementById('vlNombre').value,
+            telefono: document.getElementById('vlTelefono').value,
+            parque: NOMBRE_PARQUE_OFICIAL,
+            disponibilidad: document.getElementById('vlDisponibilidad').value,
+            mensaje: document.getElementById('vlMensaje').value || 'Listo para apoyar.'
+        };
+        enviarAGoogleSheets(payload, () => {
+            btn.disabled = false; btn.textContent = "Inscribirme como Voluntario";
+            mostrarToast("¡Te has inscrito como voluntario exitosamente!", "success");
+            this.reset();
+            document.getElementById('vlParque').value = NOMBRE_PARQUE_OFICIAL;
+            volverInicio();
+        });
+    });
+
+    document.getElementById('formReporteDaño').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btnSubmitRep');
+        btn.disabled = true; btn.textContent = "Subiendo reporte...";
+
+        const fotoFinal = fotoComprimidaActual || "Sin foto";
+        const parque = NOMBRE_PARQUE_OFICIAL;
+        const tipoProblema = document.getElementById('repTipo').value;
+        const descripcion = document.getElementById('repDesc').value;
+
+        const payload = {
+            tipoAccion: 'ReporteDaño',
+            parque: parque,
+            tipoProblema: tipoProblema,
+            descripcion: descripcion,
+            foto: fotoFinal,
+            contacto: document.getElementById('repContacto').value,
+            fecha: new Date().toISOString(),
+            estado: 'Pendiente'
+        };
+
+        enviarAGoogleSheets(payload, () => {
+            btn.disabled = false; btn.textContent = "Enviar Reporte con Foto";
+            const key = `${parque}_${tipoProblema}_${descripcion}`.substring(0, 60);
+            reportesRecientesLocal.push(key);
+            sessionStorage.setItem('adopta_recientes', JSON.stringify(reportesRecientesLocal));
+
+            mostrarToast("¡Reporte enviado con éxito!", "success");
+            document.getElementById('formReporteDaño').reset();
+            document.getElementById('repParque').value = NOMBRE_PARQUE_OFICIAL;
+            limpiarFotoSeleccionada();
+            volverInicio();
+        });
+    });
+
+    function enviarAGoogleSheets(datos, callback) {
+        fetch(URL_WEB_APP, {
+            method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(datos)
+        }).then(() => { if(callback) callback(); }).catch(err => {
+            console.error(err);
+            mostrarToast("Error de red, intentando guardar...", "error");
+            if(callback) callback();
+        });
+    }
+
+    /* ==================== GENERADOR DE AFICHE QR EMPRESARIAL ==================== */
+    function filtrarEmpresasQR() {
+        const query = document.getElementById('buscarEmpresaQR').value.toLowerCase().trim();
+        const contenedor = document.getElementById('listaResultadosQR');
+        if (!query) { contenedor.classList.add('hidden'); return; }
+        const coincidencia = datosGlobales.filter(item => (item.nombre && item.nombre.toLowerCase().includes(query)) || (item.ruc && item.ruc.toString().includes(query)));
+        if (coincidencia.length === 0) {
+            contenedor.innerHTML = '<div class="search-item"><span class="search-item-sub">⚠️ No se encontró ningún aliado registrado.</span></div>';
+        } else {
+            contenedor.innerHTML = '';
+            coincidencia.forEach(emp => {
+                const urlValida = emp.web || URL_APP_OFICIAL;
+                const nombreEsc = emp.nombre.replace(/'/g, "\\'");
+                const msgEsc = (emp.mensaje || 'Cuidamos nuestro parque').replace(/'/g, "\\'");
+                contenedor.innerHTML += `
+                    <div class="search-item" onclick="generarQRImpresion('${nombreEsc}', '${NOMBRE_PARQUE_OFICIAL}', '${urlValida}', '${msgEsc}')">
+                        <div class="search-item-title">${emp.nombre} ${emp.ruc ? '(RUC: '+emp.ruc+')' : ''}</div>
+                        <div class="search-item-sub">${NOMBRE_PROYECTO_OFICIAL} • Clic para generar Afiche QR</div>
+                    </div>
+                `;
+            });
+        }
+        contenedor.classList.remove('hidden');
+    }
+
+    function generarQRImpresion(nombreEmpresa, parqueNombre, urlQR, slogan = "Cuidamos nuestro parque") {
+        mostrarSeccion('constanciaPrint');
+        empresaAficheActual = { nombre: nombreEmpresa, parque: NOMBRE_PARQUE_OFICIAL, url: urlQR, slogan: slogan };
+
+        const qrContainer = document.getElementById('qrcodeHidden');
+        qrContainer.innerHTML = '';
+
+        const textoQR = (urlQR && urlQR.trim()) ? urlQR.trim() : URL_APP_OFICIAL;
+
+        new QRCode(qrContainer, {
+            text: textoQR,
+            width: 440,
+            height: 440,
+            colorDark: "#14532d",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+
+        const intentarDibujar = (intentos = 0) => {
+            const qrCanvas = qrContainer.querySelector('canvas');
+            const qrImg = qrContainer.querySelector('img');
+
+            if (qrCanvas && qrCanvas.width > 0) {
+                dibujarAficheEcologico(qrCanvas, nombreEmpresa, NOMBRE_PARQUE_OFICIAL, slogan);
+                sincronizarImagenA4();
+            } else if (qrImg && qrImg.complete && qrImg.naturalWidth > 0) {
+                dibujarAficheEcologico(qrImg, nombreEmpresa, NOMBRE_PARQUE_OFICIAL, slogan);
+                sincronizarImagenA4();
+            } else if (intentos < 15) {
+                setTimeout(() => intentarDibujar(intentos + 1), 100);
+            }
+        };
+
+        setTimeout(() => intentarDibujar(0), 60);
+    }
+
+    function sincronizarImagenA4() {
+        const canvas = document.getElementById('posterCanvas');
+        const printImg = document.getElementById('posterPrintImg');
+        if (canvas && printImg) {
+            printImg.src = canvas.toDataURL('image/png');
+        }
+    }
+
+    function imprimirAficheA4() {
+        sincronizarImagenA4();
+        setTimeout(() => {
+            window.print();
+        }, 120);
+    }
+
+    function dibujarAficheEcologico(qrSource, nombreEmpresa, parqueNombre, slogan) {
+        const canvas = document.getElementById('posterCanvas');
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width;
+        const H = canvas.height;
+
+        const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+        bgGrad.addColorStop(0, '#f4f9ee');
+        bgGrad.addColorStop(0.65, '#eef6e6');
+        bgGrad.addColorStop(1, '#dcecc9');
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, W, H);
+
+        ctx.fillStyle = '#9cc66b';
+        ctx.beginPath();
+        ctx.ellipse(W / 2, H - 140, 650, 140, 0, Math.PI, 0);
+        ctx.fill();
+        ctx.fillStyle = '#86b554';
+        ctx.fillRect(0, H - 145, W, 145);
+
+        dibujarHojaDecorativa(ctx, 40, 30, 110, 45, '#5b9a3d', 0.4);
+        dibujarHojaDecorativa(ctx, 130, 10, 90, 35, '#8bc34a', 0.8);
+        dibujarHojaDecorativa(ctx, W - 40, 30, 110, 45, '#5b9a3d', Math.PI - 0.4);
+        dibujarHojaDecorativa(ctx, W - 130, 10, 90, 35, '#e07a3f', Math.PI - 0.8);
+
+        ctx.save();
+        ctx.translate(W / 2, 72);
+        ctx.fillStyle = '#2e6f32';
+        ctx.beginPath();
+        ctx.moveTo(0, -34);
+        ctx.quadraticCurveTo(38, -10, 0, 28);
+        ctx.quadraticCurveTo(-38, -10, 0, -34);
+        ctx.fill();
+        ctx.restore();
+
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#1f4e23';
+        ctx.font = 'bold 23px "Segoe UI", Arial, sans-serif';
+        ctx.fillText('ADOPTA EL', W / 2, 130);
+        ctx.font = '900 36px "Segoe UI", Arial, sans-serif';
+        ctx.fillText('PARQUE PAMPA CAMARÓN', W / 2, 168);
+
+        ctx.font = '900 28px "Segoe UI", Arial, sans-serif';
+        ctx.fillStyle = '#14532d';
+        ctx.fillText('¡PARQUE ADOPTADO Y CUIDADO!', W / 2, 224);
+
+        ctx.fillStyle = '#374151';
+        ctx.font = '600 23px "Segoe UI", Arial, sans-serif';
+        ctx.fillText('Gracias al aporte de:', W / 2, 262);
+
+        ctx.fillStyle = '#15803d';
+        ctx.font = '900 40px "Segoe UI", Arial, sans-serif';
+        const nombreCorto = nombreEmpresa.length > 26 ? nombreEmpresa.substring(0, 26) + '...' : nombreEmpresa.toUpperCase();
+        ctx.fillText(nombreCorto, W / 2, 312);
+
+        ctx.fillStyle = '#374151';
+        ctx.font = '600 20px "Segoe UI", Arial, sans-serif';
+        ctx.fillText(`📍 ${parqueNombre} • ${slogan}`, W / 2, 350);
+
+        ctx.fillStyle = '#d96b27';
+        ctx.font = '900 44px "Segoe UI", Arial, sans-serif';
+        ctx.fillText('¡Escanea aquí!', W / 2, 412);
+
+        const phoneW = 510;
+        const phoneH = 570;
+        const phoneX = (W - phoneW) / 2;
+        const phoneY = 435;
+
+        ctx.fillStyle = 'rgba(20, 83, 45, 0.16)';
+        roundRect(ctx, phoneX + 10, phoneY + 12, phoneW, phoneH, 42, true, false);
+
+        ctx.fillStyle = '#1b5e2e';
+        roundRect(ctx, phoneX, phoneY, phoneW, phoneH, 42, true, false);
+
+        const screenPad = 22;
+        ctx.fillStyle = '#ffffff';
+        roundRect(ctx, phoneX + screenPad, phoneY + 34, phoneW - screenPad * 2, phoneH - 68, 28, true, false);
+
+        ctx.fillStyle = '#144522';
+        roundRect(ctx, W / 2 - 40, phoneY + 13, 80, 8, 4, true, false);
+
+        if (qrSource) {
+            const qrSize = 425;
+            const qrX = (W - qrSize) / 2;
+            const qrY = phoneY + 62;
+            ctx.drawImage(qrSource, qrX, qrY, qrSize, qrSize);
+        }
+
+        const ribbonW = 560;
+        const ribbonH = 74;
+        const ribbonX = (W - ribbonW) / 2;
+        const ribbonY = phoneY + phoneH - 42;
+        ctx.fillStyle = '#d96b27';
+        roundRect(ctx, ribbonX, ribbonY, ribbonW, ribbonH, 16, true, false);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 24px "Segoe UI", Arial, sans-serif';
+        ctx.fillText('¡ESCANEA EL QR Y APOYA', W / 2, ribbonY + 32);
+        ctx.fillText('NUESTRO NEGOCIO!', W / 2, ribbonY + 60);
+
+        const pillW = 590;
+        const pillH = 48;
+        const pillX = (W - pillW) / 2;
+        const pillY = 1068;
+        ctx.fillStyle = '#1b5e2e';
+        roundRect(ctx, pillX, pillY, pillW, pillH, 24, true, false);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '800 24px "Segoe UI", Arial, sans-serif';
+        ctx.fillText('¿CÓMO PUEDES AGRADECERNOS?', W / 2, pillY + 32);
+
+        ctx.fillStyle = '#1f2937';
+        ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif';
+        ctx.fillText('📱 1. Escanea', 175, 1165);
+        ctx.fillText('el QR', 175, 1192);
+
+        ctx.fillText('🌐 2. Visita', 450, 1165);
+        ctx.fillText('nuestra web', 450, 1192);
+
+        ctx.fillText('🛍️ 3. ¡Apóyanos', 725, 1165);
+        ctx.fillText('comprando!', 725, 1192);
+    }
+
+    function dibujarHojaDecorativa(ctx, x, y, len, wid, color, angle) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(len / 2, -wid, len, 0);
+        ctx.quadraticCurveTo(len / 2, wid, 0, 0);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+        if (fill) ctx.fill();
+        if (stroke) ctx.stroke();
+    }
+
+    function descargarAfichePNG() {
+        const canvas = document.getElementById('posterCanvas');
+        const link = document.createElement('a');
+        const cleanName = (empresaAficheActual.nombre || 'Empresa').replace(/[^a-zA-Z0-9]/g, '_');
+        link.download = `Afiche_QR_${cleanName}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        mostrarToast('Afiche QR descargado en formato PNG', 'success');
+    }
+
+    /* ==================== COMPARTIR POR WHATSAPP ==================== */
+    function compartirAppWhatsApp() {
+        const texto = `🌳 *${NOMBRE_PROYECTO_OFICIAL}* - ¡Únete al cuidado de nuestro parque! Reporta incidencias, participa o adopta aquí:\n${URL_APP_OFICIAL}`;
+        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`, '_blank');
+    }
+
+    function compartirAficheWhatsApp() {
+        const emp = empresaAficheActual.nombre || 'Nuestro negocio';
+        const web = empresaAficheActual.url || URL_APP_OFICIAL;
+        const texto = `🌿 *¡${emp} apoya ${NOMBRE_PROYECTO_OFICIAL}!*\nGracias por cuidar nuestro parque. Visita nuestro enlace aliado aquí:\n${web}\n\nPlataforma oficial: ${URL_APP_OFICIAL}`;
+        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`, '_blank');
+    }
+
+    /* ==================== DIRECTORIO Y NAVEGACIÓN CON HISTORIAL ==================== */
+    function cambiarTab(tipo) {
+        const tabEmp = document.getElementById('tabEmpresas');
+        const tabCiu = document.getElementById('tabCiudadanos');
+        const cabecera = document.getElementById('cabeceraTabla');
+        const cuerpo = document.getElementById('cuerpoTabla');
+        cuerpo.innerHTML = '';
+        if(tipo === 'Empresa') {
+            tabEmp.classList.add('active'); tabCiu.classList.remove('active');
+            cabecera.innerHTML = `<th>Empresa</th><th>RUC</th><th>Parque</th><th>Mensaje</th>`;
+            datosGlobales.filter(d => d.tipo === 'Empresa').forEach(e => {
+                cuerpo.innerHTML += `<tr><td><strong>${e.nombre}</strong></td><td>${e.ruc}</td><td>${e.parque || NOMBRE_PARQUE_OFICIAL}</td><td><i>"${e.mensaje}"</i></td></tr>`;
+            });
+        } else {
+            tabCiu.classList.add('active'); tabEmp.classList.remove('active');
+            cabecera.innerHTML = `<th>Ciudadano Solidario</th><th>Parque</th><th>Mensaje</th>`;
+            datosGlobales.filter(d => d.tipo === 'Ciudadano').forEach(c => {
+                cuerpo.innerHTML += `<tr><td><strong>${c.nombre}</strong></td><td>${c.parque || NOMBRE_PARQUE_OFICIAL}</td><td><i>"${c.mensaje}"</i></td></tr>`;
+            });
+        }
+    }
+
+    function mostrarSeccion(id) {
+        aplicarVistaSeccion(id, true);
+    }
+
+    function aplicarVistaSeccion(id, pushHist) {
+        ['menuPrincipal', 'secEmpresa', 'secBosque', 'secMuroReportes', 'secVoluntario', 'secVoluntariosLimpieza', 'secReporteDaño', 'secGenQR', 'secAdmin', 'constanciaPrint', 'secImpacto', 'secTicker', 'secPolitica', 'btnShareApp'].forEach(sec => {
+            document.getElementById(sec).classList.add('hidden');
+        });
+        document.getElementById(id).classList.remove('hidden');
+        if(id === 'secBosque') cambiarTab('Empresa');
+        if(id === 'secMuroReportes') aplicarFiltrosMuro();
+
+        if (pushHist) {
+            window.history.pushState({ vista: id }, '', '');
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function volverInicio() {
+        aplicarVistaInicio(true);
+    }
+
+    function aplicarVistaInicio(updateHist) {
+        ['secEmpresa', 'secBosque', 'secMuroReportes', 'secVoluntario', 'secVoluntariosLimpieza', 'secReporteDaño', 'secGenQR', 'secAdmin', 'constanciaPrint'].forEach(sec => {
+            document.getElementById(sec).classList.add('hidden');
+        });
+        document.getElementById('menuPrincipal').classList.remove('hidden');
+        document.getElementById('secImpacto').classList.remove('hidden');
+        document.getElementById('secTicker').classList.remove('hidden');
+        document.getElementById('secPolitica').classList.remove('hidden');
+        document.getElementById('btnShareApp').classList.remove('hidden');
+
+        if (updateHist && window.history.state && window.history.state.vista !== 'inicio') {
+            window.history.replaceState({ vista: 'inicio' }, '', '');
+        }
+        cargarDatosDesdeSheets();
+    }
+
+    /* ==================== PANEL ADMIN CON GESTIÓN DE REPORTES ==================== */
+    function accederAdmin() {
+        const clave = prompt("Ingresa la clave de administración:");
+        if(clave === claveAdminDinamica) {
+            mostrarSeccion('secAdmin');
+            cambiarTabAdmin('registros');
+            renderizarTablaAdminRegistros();
+            renderizarTablaAdminReportes();
+            mostrarToast("Acceso concedido al Panel Admin", "success");
+        } else if(clave !== null) {
+            mostrarToast("Clave incorrecta", "error");
+        }
+    }
+
+    function cambiarTabAdmin(vista) {
+        const tabReg = document.getElementById('tabAdminReg');
+        const tabRep = document.getElementById('tabAdminRep');
+        const boxReg = document.getElementById('adminVistaRegistros');
+        const boxRep = document.getElementById('adminVistaReportes');
+
+        if (vista === 'registros') {
+            tabReg.classList.add('active'); tabRep.classList.remove('active');
+            boxReg.classList.remove('hidden'); boxRep.classList.add('hidden');
+        } else {
+            tabRep.classList.add('active'); tabReg.classList.remove('active');
+            boxRep.classList.remove('hidden'); boxReg.classList.add('hidden');
+        }
+    }
+
+    function renderizarTablaAdminRegistros() {
+        const cuerpo = document.getElementById('cuerpoAdmin');
+        cuerpo.innerHTML = '';
+        datosGlobales.forEach(item => {
+            cuerpo.innerHTML += `
+                <tr>
+                    <td>${item.id}</td>
+                    <td><strong>${item.nombre}</strong></td>
+                    <td>${item.tipo}</td>
+                    <td>${item.parque || NOMBRE_PARQUE_OFICIAL}</td>
+                    <td><i>"${item.mensaje || ''}"</i></td>
+                    <td><button class="btn btn-back" style="background:var(--danger); margin:0; padding:5px 9px; font-size:11px;" onclick="eliminarRegistroFila(${item.rowIndex})">Eliminar</button></td>
+                </tr>
+            `;
+        });
+    }
+
+    function renderizarTablaAdminReportes() {
+        const cuerpo = document.getElementById('cuerpoAdminReportes');
+        cuerpo.innerHTML = '';
+        if (!reportesGlobales || reportesGlobales.length === 0) {
+            cuerpo.innerHTML = '<tr><td colspan="5">No hay reportes registrados.</td></tr>';
+            return;
+        }
+        [...reportesGlobales].reverse().forEach((rep, idx) => {
+            const estado = obtenerEstadoReporte(rep, idx);
+            const key = `${rep.parque || NOMBRE_PARQUE_OFICIAL}_${rep.tipoProblema}_${rep.descripcion}`.substring(0, 60).replace(/'/g, "\\'");
+            const rowIdx = rep.rowIndex || '';
+            cuerpo.innerHTML += `
+                <tr>
+                    <td><strong>${rep.parque || NOMBRE_PARQUE_OFICIAL}</strong></td>
+                    <td>${rep.tipoProblema || 'Incidencia'}</td>
+                    <td style="max-width:220px;">${rep.descripcion || ''}</td>
+                    <td>
+                        <span class="status-badge ${estado === 'Solucionado' ? 'status-solucionado' : 'status-pendiente'}">
+                            ${estado}
+                        </span>
+                    </td>
+                    <td style="display:flex; gap:6px; flex-wrap:wrap;">
+                        ${estado !== 'Solucionado' ? `<button class="btn btn-back" style="background:var(--primary); margin:0; padding:5px 9px; font-size:11px;" onclick="marcarReporteSolucionado('${key}', '${rowIdx}')">✔ Solucionado</button>` : ''}
+                        ${rowIdx ? `<button class="btn btn-back" style="background:var(--danger); margin:0; padding:5px 9px; font-size:11px;" onclick="eliminarRegistroFila('${rowIdx}', 'reportes')">Eliminar</button>` : ''}
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    function marcarReporteSolucionado(key, rowIndex) {
+        if (!reportesSolucionadosLocal.includes(key)) {
+            reportesSolucionadosLocal.push(key);
+        }
+        if (rowIndex && !reportesSolucionadosLocal.includes(rowIndex)) {
+            reportesSolucionadosLocal.push(rowIndex);
+        }
+        localStorage.setItem('adopta_solucionados', JSON.stringify(reportesSolucionadosLocal));
+        renderizarTablaAdminReportes();
+        aplicarFiltrosMuro();
+        mostrarToast("Reporte marcado como Solucionado", "success");
+
+        if (rowIndex) {
+            fetch(URL_WEB_APP, {
+                method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: "solveReport", rowIndex: rowIndex, estado: "Solucionado" })
+            }).catch(() => {});
+        }
+    }
+
+    function eliminarRegistroFila(rowIndex, hoja = 'registros') {
+        if(confirm("¿Seguro que deseas eliminar este registro?")) {
+            fetch(URL_WEB_APP, {
+                method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: "delete", rowIndex: rowIndex, sheet: hoja })
+            }).then(() => {
+                mostrarToast("Registro eliminado correctamente", "success");
+                volverInicio();
+            });
+        }
+    }
+</script>
+
+</body>
+</html>
